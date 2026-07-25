@@ -1,24 +1,38 @@
-# Telemetry Application Design
+# Telemetry Application Design Source Transcript
 
 > Source: [ChatGPT shared conversation](https://chatgpt.com/share/6a64dcaf-17b8-83e8-a452-e8545a4a4358)
 > Retrieved: 2026-07-25
 > Conversation created: 2026-07-25
 
----
+## Status
+
+This file is an archival transcript of the original design conversation.
+
+For the maintained working documentation, use:
+
+- [README.md](./README.md)
+- [product-scope.md](./product-scope.md)
+- [architecture-overview.md](./architecture-overview.md)
+- [domain-model.md](./domain-model.md)
+- [implementation-plan.md](./implementation-plan.md)
+
+## Archived Transcript
+
+````markdown
 
 ## User
 
-I am looking to create a small simple application that can run on windows and on Ubuntu Linux. It needs to run as a demon process or Windows service. 
+I am looking to create a small simple application that can run on windows and on Ubuntu Linux. It needs to run as a demon process or Windows service.
 
-I need to be able to compile a window service application version and a Lennox daemon background working process service and be able to register it with Linux. 
+I need to be able to compile a window service application version and a Lennox daemon background working process service and be able to register it with Linux.
 
 The application will need to talk to a web service to report data and detail details about the computer that Webb service will capture the data as a web post and store that detail and information in a database
 
-The purpose is to track computer up time and some telemetry about the computer, fairly simple lightweight, but will provide on ongoing uptime history when the computer is running and then it won’t when the computer is off or in hibernation or sleep mode  
+The purpose is to track computer up time and some telemetry about the computer, fairly simple lightweight, but will provide on ongoing uptime history when the computer is running and then it won’t when the computer is off or in hibernation or sleep mode
 
 If there’s a way to acquire power usage information that would be great, but it at least needs to be able to report the computer name and the time in which the message was sent and received to provide up time data and detail details about the computer
 
-So part of this project will need a Webb service that will be running on either as your or a Windows IIS server  
+So part of this project will need a Webb service that will be running on either as your or a Windows IIS server
 
 I want to use DOTNET C sharp for the coding language and that will be both for the background service and the web service  start working on that and putting some details together, and we will continue to iterate from there on design requirements
 
@@ -2795,4 +2809,4 @@ Associations connect them only when the real-world relationship exists.
 ```
 
 This structure supports your initial deployment with computer agents only and allows Shelly devices to be introduced incrementally without redesigning the API or database.
-
+````
