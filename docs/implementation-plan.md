@@ -40,7 +40,9 @@ Support Windows and Ubuntu computer monitoring without any power-meter dependenc
 - Scaffold API, Windows Service, Linux daemon, and shared libraries.
 - Implement agent identity persistence.
 - Implement heartbeat contract and publishing client.
-- Implement API authentication for agents.
+- Implement ASP.NET Core Identity with local user accounts, the `Owner` role, and the `DeviceAccount` entity (see [architecture-overview.md](./architecture-overview.md#authentication-and-authorization) and [domain-model.md](./domain-model.md)). Support both a shared device account and dedicated per-device accounts, at the owner's discretion.
+- Implement a token endpoint issuing JWT access and refresh tokens for device accounts, used by the Windows Service and Linux daemon agents; support periodic access-token rotation via refresh rather than resending the original credential.
+- Implement account lockout on repeated failed authentication attempts and rate limiting on the token endpoint, as baseline brute-force protection for the most exposed part of the system.
 - Persist machines, heartbeats, runtime sessions, and storage telemetry in SQL Server.
 - Implement heartbeat gap handling and runtime-session reconstruction.
 - Add health checks and structured logging.
@@ -80,10 +82,11 @@ Add Shelly support without changing the machine-monitoring core contract.
 
 ### Phase 3 Work Items
 
-- Implement power-meter registration model.
+- Implement power-meter registration model, including secret-reference storage for device credentials (never the credential itself).
 - Implement power-reading ingestion contract and storage.
 - Implement agent-side Shelly polling provider.
-- Implement machine-to-meter and meter-to-device association endpoints.
+- Implement HTTP Basic Auth with hashed API-key validation as a second authentication scheme for `DeviceAccount`s that cannot perform the JWT login/refresh flow, plus owner-facing endpoints to issue, view (once), and revoke a `DeviceAccount`'s API key.
+- Implement machine-to-meter and meter-to-device association endpoints, and the owner-facing device-account management endpoints (create/remove/reassign device accounts) these depend on.
 - Implement location model and effective-dated meter placement.
 - Validate dedicated, shared, and collector-only relationship handling.
 
@@ -104,7 +107,7 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 - Evaluate MQTT or direct-ingestion Shelly path.
 - Add approval workflows for discovered machines and meters.
 - Add aggregate reporting queries or read models.
-- Add optional estimated power-allocation support.
+- Add optional estimated power-allocation support (`PowerAllocationRule`; see [domain-model.md](./domain-model.md)).
 - Add alerting and operational dashboards if required.
 
 ### Phase 4 Exit Criteria
@@ -120,6 +123,7 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 - Heartbeat ingestion.
 - Power-reading ingestion.
 - Association management endpoints.
+- Token issuance/refresh (JWT) and device-account/API-key management endpoints.
 - Validation and idempotency rules.
 
 ## Agent Runtime
@@ -169,21 +173,27 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 - Cross-platform telemetry collection may diverge more than expected.
 - Session reconstruction rules may need tuning once real-world heartbeat gaps are observed.
 - Enrollment and authentication complexity may expand quickly if unauthenticated discovery is allowed.
+- Supporting two authentication schemes (JWT and Basic Auth/API key) doubles the surface that must be kept hardened — a weakness in the less-used API-key path (for example, a missed rate limit or an unhashed key in a log) undermines the security goal even if the JWT path is solid.
 - Power-meter identity conflicts may arise if meters are discovered from multiple ingestion paths.
 - Historical association rules can become difficult to enforce without clear administrative workflows.
 
 ## Open Technical Questions
 
 - Will SQL Server be available locally through containers for everyday development and tests?
-- Should the retry queue start in SQLite or in a simpler file-based format?
+- Should the retry queue start in SQLite or in a simpler file-based format? [inital-spec.md](./inital-spec.md) already recommends a SQLite-backed queue with a 7-day/100 MB cap and a 15s/30s/1m/5m/15m backoff progression — this question is whether to adopt that recommendation as-is or revisit it, not whether to start from a blank slate.
 - Is the first agent registration flow self-service, pre-provisioned, or approval-based?
 - Should power readings travel inside heartbeat payloads, through separate endpoints, or both?
 - What minimum administrative API surface is required before any UI exists?
+- What are the accepted default values for heartbeat interval, offline threshold, and session-break threshold? [inital-spec.md](./inital-spec.md) proposes 60 seconds, 3 minutes, and 5 minutes respectively as illustrative starting points; [architecture-overview.md](./architecture-overview.md) repeats them but they are not yet a confirmed decision.
+- No document yet enumerates the concrete API routes, request/response payloads, and token endpoint contract (login/refresh request and response shapes, JWT claims such as `AgentId`/`MachineId`, access-token lifetime, Basic Auth header format) as an accepted contract — today these only exist as examples inside the raw [inital-spec.md](./inital-spec.md) transcript, and that transcript predates the Owner/DeviceAccount/JWT/Basic-Auth decision entirely. A dedicated API contracts document (or an addition to this plan) should be produced before or during Phase 1 so the API and agent implementations build against the same accepted shapes.
+- Should device accounts be provisioned one-per-machine by default, or is a shared account the default with dedicated per-device accounts as an opt-in? (See [product-scope.md](./product-scope.md).)
+- Is more than one owner account expected in the first release, and if so, must each owner's devices/data be isolated from other owners'? (See [product-scope.md](./product-scope.md).)
+- Is the initial device-account credential single-use (invalidated after the first JWT login) or a standing fallback credential? (See [product-scope.md](./product-scope.md).)
 
 ## Definition Of Ready For Implementation
 
 - Project naming and solution structure are agreed.
-- Initial authentication approach is selected.
+- Initial authentication approach is selected: ASP.NET Core Identity local accounts, an `Owner`/`DeviceAccount` ownership model, JWT bearer tokens as the primary scheme, and HTTP Basic Auth with a hashed API key as a fallback for devices that cannot rotate JWTs (decided; see [product-scope.md](./product-scope.md)). The concrete token endpoint contract and default account-provisioning policy remain open — see the questions above.
 - Runtime-session rules are agreed well enough to implement tests.
 - Minimum machine and power-meter data fields are accepted.
 - Deployment targets for the first environment are identified.

@@ -23,28 +23,33 @@ The system also needs an extensible path for optional power telemetry, starting 
 - Software inventory, patch management, or process inspection.
 - Automatic agent updates.
 - Real-time alerting beyond basic health visibility.
+- A multi-tenant SaaS platform (isolated organizations, billing, cross-tenant data partitioning). The owner/device-account model described under [Decisions](#decisions) is single-deployment ownership and access control, not a multi-tenant hosting model — see the open question below on whether more than one owner account is even expected in the first release.
 
 ## Product Principles
 
-## Outbound-Only Monitoring
+### Outbound-Only Monitoring
 
 Monitored computers and optional power integrations should send data to the API. The server should not require inbound access to monitored machines.
 
-## Independent First-Class Entities
+### Independent First-Class Entities
 
 Machines, power meters, monitored devices, and locations must all be creatable independently. Associations are optional and added later when the real-world relationship exists.
 
-## Accurate Historical Context
+### Accurate Historical Context
 
 Time-aware associations and session modeling are required so the system can answer both current-state and historical questions.
 
-## Normalized Telemetry Ownership
+### Normalized Telemetry Ownership
 
 Measured power belongs to the power meter. Measured uptime belongs to the machine heartbeat and runtime-session model. Context is created through associations rather than by duplicating telemetry across related entities.
 
+### Minimal Attack Surface
+
+The ingestion API is the most exposed part of the system and should be hardened accordingly: every non-health endpoint requires authentication, device-facing credentials carry the least privilege needed to submit telemetry (never administrative access), credentials are stored hashed rather than in plaintext, and authentication endpoints are protected against brute-force attempts (lockout, rate limiting). Convenience for constrained devices (see the Basic Auth/API-key fallback under [Decisions](#decisions)) must not come at the cost of these baseline protections.
+
 ## Initial Scope Boundary
 
-## In Scope
+### In Scope
 
 - ASP.NET Core ingestion API.
 - SQL Server persistence model.
@@ -57,11 +62,11 @@ Measured power belongs to the power meter. Measured uptime belongs to the machin
 - Minimum location and monitored-device management needed to associate power meters to real-world equipment when Shelly support is introduced.
 - Documentation for design, planning, and implementation sequence.
 
-## Deferred But Supported By The Design
+### Deferred But Supported By The Design
 
 - Dedicated power-meter ingestion service.
 - MQTT-based Shelly ingestion.
-- Device-level estimated power allocation.
+- Device-level estimated power allocation (see `PowerAllocationRule` in [domain-model.md](./domain-model.md)).
 - Administrative workflows for approval and lifecycle management.
 - Power-aware state inference across large fleets.
 - Broad software inventory beyond the minimum physical device and location context needed for power-meter associations.
@@ -89,6 +94,7 @@ Measured power belongs to the power meter. Measured uptime belongs to the machin
 - HTTPS is required for all agent-to-API communication.
 - Windows and Ubuntu are the first supported operating systems.
 - Power telemetry is optional for the first deployment wave.
+- Authentication uses ASP.NET Core Identity with local user accounts and JWT bearer tokens; no external identity provider is in scope for the first release.
 
 ## Constraints
 
@@ -97,9 +103,23 @@ Measured power belongs to the power meter. Measured uptime belongs to the machin
 - Platform-specific behavior should be isolated to hosting, installation, and OS-specific telemetry collection.
 - Security controls should be strong enough for unattended service-to-API communication.
 
+## Decisions
+
+- **Authentication model (decided):** The API authenticates callers through ASP.NET Core Identity local user accounts — no external identity provider. There are two kinds of account:
+  - **Owner account**: a human user who administers the deployment. An owner creates and removes device accounts, and decides whether devices share one account or each get their own.
+  - **Device account**: the credential a reporting agent (or other telemetry-producing device) uses to call the ingestion API. Every device account is owned by exactly one owner account. An owner may create one device account per machine, or a single shared device account used by many machines — both are supported, and the choice is the owner's, not a fixed system default.
+  - Device accounts authenticate through **either** of two schemes, chosen per device account based on what the device can support:
+    1. **JWT bearer tokens (primary).** The device is given its account's credentials out-of-band when the Windows Service or systemd daemon is first registered, uses them once to obtain an access token and refresh token, and rotates the access token periodically thereafter — it does not resend the original credential on every call.
+    2. **HTTP Basic Auth with a long-lived API key (fallback).** For devices that cannot perform a login/refresh flow — for example, a Shelly Plug US Gen4 driven by a webhook or on-device script — the device account's "password" is a hashed, individually revocable API key rather than a real rotating credential.
+  - Both schemes authorize into the same restricted, telemetry-only scope; neither can reach administrative endpoints (association management, location management, device-account management), which require an owner account.
+  - This supersedes the `Authorization: AgentKey ...` scheme shown in [inital-spec.md](./inital-spec.md). See [architecture-overview.md](./architecture-overview.md#authentication-and-authorization) for the design and [domain-model.md](./domain-model.md) for the `DeviceAccount` entity and how a `Machine` links to it.
+
 ## Open Product Decisions
 
 - Whether agent registration is auto-approved or requires an approval workflow.
-- Whether the first API authentication model is per-agent API keys only or includes enrollment workflows immediately.
+- Whether device accounts are provisioned one-per-machine by default, or a shared account is the default with dedicated per-device accounts as an opt-in — the owner can choose either way, but the first-run default still needs to be picked.
+- Whether more than one owner account is expected in the first release, and if so, whether each owner's devices and data must be isolated from other owners' (which would be a light form of multi-tenancy) or whether all owners share full visibility. Today the model assumes ownership without necessarily assuming isolation; this needs an explicit answer before it affects query/authorization design.
+- Whether the initial device-account credential (used only to bootstrap the first JWT) should be treated as one-time/single-use and invalidated after first successful login, or remain a standing password the device can always fall back to.
 - Whether Shelly support starts as agent polling only or also includes an early direct-ingestion path.
 - What the minimum operator workflow should be for managing locations and monitored-device associations once power-meter support is enabled.
+- Whether the retry-queue technology and limits proposed in [inital-spec.md](./inital-spec.md) (SQLite-backed, 7-day/100 MB cap, 15s/30s/1m/5m/15m backoff) should be adopted as-is; see the corresponding open question in [implementation-plan.md](./implementation-plan.md).

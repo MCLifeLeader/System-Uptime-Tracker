@@ -2,7 +2,7 @@
 
 A small, cross-platform .NET system for tracking computer uptime and telemetry, with optional power-usage monitoring through smart plugs. A lightweight background agent runs on Windows and Ubuntu Linux, reports heartbeats and system telemetry over HTTPS to a central ASP.NET Core API, and the API persists everything to SQL Server for uptime history and reporting.
 
-> **Status: design phase.** No application code has been written yet. The full design conversation that shaped this project — architecture, data model, API contracts, and open decisions — is captured in [docs/inital-spec.md](docs/inital-spec.md). This README reflects that intended direction. The repository currently carries a general-purpose Azure/.NET developer-environment scaffold (dev container, local dependency containers, DevOps pipeline placeholders, Copilot/Codex instruction library) that implementation will build on top of.
+> **Status: design phase.** No application code has been written yet. The design work lives under [docs/](docs/): [docs/product-scope.md](docs/product-scope.md), [docs/architecture-overview.md](docs/architecture-overview.md), [docs/domain-model.md](docs/domain-model.md), and [docs/implementation-plan.md](docs/implementation-plan.md) are the structured, up-to-date references; [docs/inital-spec.md](docs/inital-spec.md) is the original raw design conversation those were distilled from. This README reflects that intended direction. The repository currently carries a general-purpose Azure/.NET developer-environment scaffold (dev container, local dependency containers, DevOps pipeline placeholders, Copilot/Codex instruction library) that implementation will build on top of.
 
 ## What it does
 
@@ -22,7 +22,7 @@ Three independently deployable applications share common libraries and message c
 | `SystemUptimeTracker.WindowsService` | Windows x64 | Runs under Windows Service Control Manager |
 | `SystemUptimeTracker.LinuxDaemon` | Ubuntu x64/ARM64 | Runs under `systemd` |
 
-Shared libraries: `Agent.Core` (worker logic used by both platform agents), `Contracts` (heartbeat/telemetry message contracts), `Data` (EF Core `DbContext`, entities, migrations), `Shelly` (Shelly Plug normalization).
+Shared libraries: `Agent.Core` (worker logic used by both platform agents), `Contracts` (heartbeat/telemetry message contracts), `Data` (EF Core `DbContext`, entities, migrations), `Power.Shelly` (Shelly Plug normalization). See [docs/architecture-overview.md](docs/architecture-overview.md) for the full project/namespace list and proposed `src/` layout.
 
 ```text
 Shelly Plug US Gen4 (optional)
@@ -42,13 +42,14 @@ Design notes preserve room to add an MQTT- or WebSocket-based ingestion path lat
 - ASP.NET Core Web API + Entity Framework Core for the ingestion service
 - SQL Server / Azure SQL Database for persistence
 - Self-contained, single-file `dotnet publish` for Windows Service and `systemd` daemon distribution
-- API-key authentication initially, HTTPS-only
+- ASP.NET Core Identity with local user accounts (Owner and Device accounts); devices authenticate with JWT bearer tokens (primary, with periodic rotation) or HTTP Basic Auth with a hashed API key (fallback for constrained devices like the Shelly plug); HTTPS-only. See [docs/architecture-overview.md](docs/architecture-overview.md#authentication-and-authorization).
 
 ## Data model highlights
 
 Core entities are independent first-class records, associated only when a real-world relationship exists:
 
 - **Machine** — a registered computer (identified by a persisted `AgentId`, never by hostname alone).
+- **DeviceAccount** — the credential/ownership record a machine (or Shelly plug, eventually) authenticates with; owned by exactly one Owner account, and shareable across machines or dedicated to one.
 - **PowerMeter** — a Shelly plug (or future smart-meter vendor), independent of any computer.
 - **MonitoredDevice** — general equipment inventory (computer, monitor, power strip, network switch, UPS, etc.), optionally linked to a `Machine`.
 - **Location** — a nested physical hierarchy (site → building → room → desk) that meters and devices can be placed in.
@@ -69,7 +70,7 @@ The guiding principle: **measured power belongs to the meter**; location and dev
 8. Machine and heartbeat records
 9. Server-side runtime-session calculation
 10. Local retry queue (SQLite-backed) for API outages
-11. API-key authentication
+11. ASP.NET Core Identity authentication (Owner/Device accounts) with JWT bearer tokens, plus HTTP Basic Auth with API keys as a fallback for constrained devices
 12. CPU, memory, disk, OS, boot, and agent-version telemetry
 13. Health-check endpoint
 14. Structured logging
@@ -78,7 +79,7 @@ The guiding principle: **measured power belongs to the meter**; location and dev
 
 ## Repository layout
 
-- [docs/](docs/) — project documentation, starting with the original design conversation ([inital-spec.md](docs/inital-spec.md)).
+- [docs/](docs/) — project documentation; start with [docs/README.md](docs/README.md) for the reading order.
 - [src/](src/) — application source (not yet populated; will hold the solution described above).
 - [containers/](containers/) — Docker Compose services for local dependencies (SQL Server, Seq, WireMock, and others not all needed by this project — trim what you don't use).
 - [devops/](devops/) — CI/CD pipeline and infrastructure-as-code scaffolding.
@@ -129,7 +130,12 @@ WireMock HTTPS certificate generation uses `keytool`, provided by a Java Develop
 
 ## Documentation map
 
-- [docs/inital-spec.md](docs/inital-spec.md) — the original design conversation: architecture, uptime/session model, database schema, Shelly Plug integration options, and API contracts.
+- [docs/README.md](docs/README.md) — index and recommended reading order for the documents below.
+- [docs/product-scope.md](docs/product-scope.md) — goals, non-goals, scope boundaries, assumptions, and success criteria.
+- [docs/architecture-overview.md](docs/architecture-overview.md) — system shape, runtime flows, deployment model, and cross-cutting concerns.
+- [docs/domain-model.md](docs/domain-model.md) — entities, relationships, identity rules, and data lifecycle guidance.
+- [docs/implementation-plan.md](docs/implementation-plan.md) — phased execution plan, workstreams, risks, and open questions.
+- [docs/inital-spec.md](docs/inital-spec.md) — the original raw design conversation the structured documents above were distilled from; kept for traceability, not as the working plan.
 - [.github/readme.md](.github/readme.md) — repository automation, Copilot configuration, and GitHub-specific guidance.
 - [containers/readme.md](containers/readme.md) — Docker Compose services and local dependency containers.
 - [containers/certs/readme.md](containers/certs/readme.md) — certificate setup for HTTPS and WireMock scenarios.
@@ -139,7 +145,7 @@ WireMock HTTPS certificate generation uses `keytool`, provided by a Java Develop
 
 ## Next steps
 
-Per the design conversation: the solution skeleton, shared heartbeat contracts, initial database entities, and a functioning agent-to-API heartbeat path (without Shelly integration) are the recommended starting point. Shelly Plug support, location/device inventory, and richer reporting can follow once that path works end-to-end.
+The solution skeleton, shared heartbeat contracts, initial database entities, and a functioning agent-to-API heartbeat path (without Shelly integration) are the recommended starting point. Shelly Plug support, location/device inventory, and richer reporting can follow once that path works end-to-end. See [docs/implementation-plan.md](docs/implementation-plan.md) for the full phased plan, and its "Open Technical Questions" section for decisions that should be settled before or during Phase 1.
 
 ## Troubleshooting
 
