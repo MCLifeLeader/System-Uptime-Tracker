@@ -1,8 +1,9 @@
-## Contributing to Developer-Toolbox
+# Contributing to System Uptime Tracker
 
-Thanks for your interest in contributing! This repository is a curated collection of scripts, templates and examples for developer tooling (containers, DevOps pipelines, Terraform, snippets and small helpers). The guidance below will help your contribution be reviewed and merged quickly.
+Thanks for your interest in contributing! This repository holds System Uptime Tracker, a cross-platform .NET system for tracking computer uptime, telemetry, and optional smart-plug power usage (see [README.md](README.md) and [docs/inital-spec.md](docs/inital-spec.md) for the design). The guidance below will help your contribution be reviewed and merged quickly.
 
-### Table of contents
+## Table of contents
+
 - How to contribute
 - Reporting bugs & requesting features
 - Development workflow (branching & PRs)
@@ -13,7 +14,7 @@ Thanks for your interest in contributing! This repository is a curated collectio
 - Accessibility & inclusions
 - License
 
-### How to contribute
+## How to contribute
 
 Pick one of the ways below:
 
@@ -23,7 +24,7 @@ Pick one of the ways below:
 
 Be respectful and constructive. This project follows the repository's `CODEOWNERS` and default review process.
 
-### Reporting bugs & requesting features
+## Reporting bugs & requesting features
 
 - Use the Issues tab and choose the appropriate template if available.
 - For bugs, include:
@@ -35,11 +36,11 @@ Be respectful and constructive. This project follows the repository's `CODEOWNER
 
 For feature requests, explain the problem you want solved and a suggested approach.
 
-### Development workflow (branching & PRs)
+## Development workflow (branching & PRs)
 
 - Fork the repository and create a branch from `main` with a clear name, e.g.:
 
-```
+```powershell
 # PowerShell example
 git checkout -b fix/short-description
 ```
@@ -48,7 +49,7 @@ git checkout -b fix/short-description
 - Rebase or merge from `main` to keep your branch up to date before creating a PR.
 - Target branch: `main` (the default branch). If you are working on a large change, open an issue first.
 
-### Commit messages
+## Commit messages
 
 Follow a simple, conventional style to make history easier to scan. Prefer short, imperative messages:
 
@@ -60,7 +61,7 @@ For larger changes, add a body explaining why the change was made and any migrat
 
 Conventional Commits are welcome but not strictly required. If you use them, a short subject line and optional body are sufficient.
 
-### Code style and tests
+## Code style and tests
 
 - Keep styles consistent with nearby files.
 - Scripts should be idempotent when possible and follow platform conventions (PowerShell scripts for Windows helpers, POSIX for containers where appropriate).
@@ -68,7 +69,7 @@ Conventional Commits are welcome but not strictly required. If you use them, a s
 
 If you add a new script or tool that requires dependencies, include a short "Try it" section in the README or the script header with commands to run.
 
-### Pull request checklist
+## Pull request checklist
 
 Before marking a PR ready for review, make sure:
 
@@ -81,18 +82,18 @@ Before marking a PR ready for review, make sure:
 
 Maintainers may request changes; please address feedback and push updates to the same branch.
 
-### Security & responsible disclosure
+## Security & responsible disclosure
 
 If you discover a security issue, please do not open a public issue. Contact the maintainers privately using the email address in the repository owner profile or follow any security policy in this repo. Include clear reproduction steps and affected components.
 
-### Accessibility & inclusions
+## Accessibility & inclusions
 
 When adding UI or documentation, follow accessibility best-practices where applicable. Keep language inclusive and people-first. If you add UI modules or examples, document keyboard interaction and screen reader considerations.
 
-### License
+## License
 
 By contributing, you agree that your contributions will be licensed under the repository's license (see `LICENSE`).
 
-### Thank you
+## Thank you
 
-Thanks for helping improve Developer-Toolbox — your contributions make this project better for everyone.
+Thanks for helping improve System Uptime Tracker — your contributions make this project better for everyone.

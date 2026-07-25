@@ -1,163 +1,152 @@
-# Developer Toolbox: Project Template and Environment Setup
+# System Uptime Tracker
 
-This repository is a starter template for building developer-ready environments and baseline project scaffolding. It is intentionally biased toward Microsoft-centric, Azure-first workloads (ASP.NET, Azure Functions, SQL Server, Terraform, Docker, PowerShell) while still supporting Node.js/React and general polyglot tooling. It is best aligned with:
+A small, cross-platform .NET system for tracking computer uptime and telemetry, with optional power-usage monitoring through smart plugs. A lightweight background agent runs on Windows and Ubuntu Linux, reports heartbeats and system telemetry over HTTPS to a central ASP.NET Core API, and the API persists everything to SQL Server for uptime history and reporting.
 
-- .NET and ASP.NET Core services and APIs
-- Azure-hosted solutions (Azure CLI, Azure Developer CLI, Bicep)
-- Containerized local dev dependencies (SQL Server, Service Bus, SMTP, WireMock)
-- CI/CD with Azure DevOps or GitHub workflows
-- Infrastructure-as-Code with Terraform
+> **Status: design phase.** No application code has been written yet. The full design conversation that shaped this project — architecture, data model, API contracts, and open decisions — is captured in [docs/inital-spec.md](docs/inital-spec.md). This README reflects that intended direction. The repository currently carries a general-purpose Azure/.NET developer-environment scaffold (dev container, local dependency containers, DevOps pipeline placeholders, Copilot/Codex instruction library) that implementation will build on top of.
 
-If your project is not Azure/.NET-centric, you can still use this template, but you should selectively remove tooling, containers, and instructions that do not apply.
+## What it does
 
-## What this template includes
+- Tracks **uptime history** for each registered computer: when it was running, and when it went offline (shutdown, sleep/hibernate, lost network, or a stopped agent).
+- Collects lightweight **system telemetry**: machine name, OS, architecture, boot time, CPU/memory/disk usage, and agent version.
+- Optionally reports **power usage** from a **Shelly Plug US Gen4** smart plug — either dedicated to one computer or shared across multiple devices (monitors, power strips, network gear).
+- Keeps computers and power meters as **independent entities** — either can be registered and used before the other exists, and association between them is optional.
+- Is **outbound-only**: agents call the API; the server never opens a connection back to a monitored machine. No inbound firewall ports, agents can sit behind NAT.
 
-- Dev Container configuration with common workloads: .NET 8/9, Node.js LTS, Azure CLI, Azure Developer CLI, Docker, Terraform, PowerShell, Python, Java (minimal), GitHub CLI, and a curated VS Code extension pack.
-- Containerized local dependencies via Docker Compose.
-- DevOps scaffolding, pipeline placeholders, and manifests.
-- Default repository standards (CODEOWNERS, CONTRIBUTING, CHANGELOG, LICENSE, .editorconfig, .gitattributes, .gitignore).
+## Planned architecture
 
-## Choose your setup path
+Three independently deployable applications share common libraries and message contracts:
 
-Use one of the options below based on your environment and preferences.
+| Application | Target | Responsibility |
+| --- | --- | --- |
+| `SystemUptimeTracker.Api` | Azure App Service/Container Apps, IIS, or Linux + Kestrel/Nginx | Ingests heartbeats and power readings, owns the SQL Server data, exposes reporting endpoints |
+| `SystemUptimeTracker.WindowsService` | Windows x64 | Runs under Windows Service Control Manager |
+| `SystemUptimeTracker.LinuxDaemon` | Ubuntu x64/ARM64 | Runs under `systemd` |
 
-Install command references:
+Shared libraries: `Agent.Core` (worker logic used by both platform agents), `Contracts` (heartbeat/telemetry message contracts), `Data` (EF Core `DbContext`, entities, migrations), `Shelly` (Shelly Plug normalization).
 
-- [INSTALL-WINDOWS-WINGET.md](INSTALL-WINDOWS-WINGET.md) – Windows-only winget commands for required and optional tools.
-- [INSTALL-LINUX-APT.md](INSTALL-LINUX-APT.md) – Linux-only apt and npm commands for required and optional tools.
+```text
+Shelly Plug US Gen4 (optional)
+          ↓ Local HTTP RPC
+Windows / Linux Agent
+          ↓ HTTPS (heartbeat + telemetry)
+ASP.NET Core API
+          ↓
+SQL Server
+```
+
+Design notes preserve room to add an MQTT- or WebSocket-based ingestion path later (for power readings while a computer is off) without changing the existing agent-to-API contracts. See [docs/inital-spec.md](docs/inital-spec.md) for the full comparison of integration options.
+
+## Tech stack
+
+- .NET 10 Worker Service (`Microsoft.Extensions.Hosting.WindowsServices` / `.Systemd`) for the cross-platform agent
+- ASP.NET Core Web API + Entity Framework Core for the ingestion service
+- SQL Server / Azure SQL Database for persistence
+- Self-contained, single-file `dotnet publish` for Windows Service and `systemd` daemon distribution
+- API-key authentication initially, HTTPS-only
+
+## Data model highlights
+
+Core entities are independent first-class records, associated only when a real-world relationship exists:
+
+- **Machine** — a registered computer (identified by a persisted `AgentId`, never by hostname alone).
+- **PowerMeter** — a Shelly plug (or future smart-meter vendor), independent of any computer.
+- **MonitoredDevice** — general equipment inventory (computer, monitor, power strip, network switch, UPS, etc.), optionally linked to a `Machine`.
+- **Location** — a nested physical hierarchy (site → building → room → desk) that meters and devices can be placed in.
+- **RuntimeSession** — heartbeats are grouped into sessions rather than treated as isolated points, so gaps naturally surface shutdowns, sleep, or lost connectivity.
+- Time-aware association tables (`MachinePowerMeterAssociation`, `PowerMeterDeviceAssociation`, `PowerMeterLocationHistory`) connect the entities above and preserve history when equipment moves.
+
+The guiding principle: **measured power belongs to the meter**; location and device associations provide context; any per-device estimate is explicitly labeled as an estimate, never treated as a direct measurement.
+
+## Recommended MVP scope
+
+1. Cross-platform Worker Service agent
+2. Windows Service installation
+3. Ubuntu `systemd` installation
+4. Persistent agent identifier
+5. HTTPS heartbeat submission
+6. ASP.NET Core ingestion API
+7. SQL Server persistence
+8. Machine and heartbeat records
+9. Server-side runtime-session calculation
+10. Local retry queue (SQLite-backed) for API outages
+11. API-key authentication
+12. CPU, memory, disk, OS, boot, and agent-version telemetry
+13. Health-check endpoint
+14. Structured logging
+
+**Deliberately deferred:** web dashboard, real-time alerts, software inventory, process monitoring, remote commands, automatic updater, exact electrical power usage, multi-tenant organizations, mobile interface.
+
+## Repository layout
+
+- [docs/](docs/) — project documentation, starting with the original design conversation ([inital-spec.md](docs/inital-spec.md)).
+- [src/](src/) — application source (not yet populated; will hold the solution described above).
+- [containers/](containers/) — Docker Compose services for local dependencies (SQL Server, Seq, WireMock, and others not all needed by this project — trim what you don't use).
+- [devops/](devops/) — CI/CD pipeline and infrastructure-as-code scaffolding.
+- [.github/](.github/) — Copilot/Codex instructions, agent personas, prompts, and skills used while developing this repository.
+
+This layout, the dev container, and the local dependency containers were inherited from a general-purpose Azure/.NET template. Nothing here should be treated as production-ready until it has been reviewed against this project's actual requirements — see [AGENTS.md](AGENTS.md).
+
+## Development environment setup
+
+Use one of the options below depending on your platform and preference. Install command references:
+
+- [INSTALL-WINDOWS-WINGET.md](INSTALL-WINDOWS-WINGET.md) — Windows-only winget commands for required and optional tools.
+- [INSTALL-LINUX-APT.md](INSTALL-LINUX-APT.md) — Linux-only apt and npm commands for required and optional tools.
 
 ### Option A: Dev Containers (recommended)
 
-Use this if you want a consistent, preconfigured environment without installing every tool locally.
-
 1. Install Docker Desktop.
 2. Install Visual Studio Code and the Dev Containers extension.
-3. Open this repository in VS Code and select “Reopen in Container.”
-4. The container will run post-create setup and install the tools described in the dev container configuration.
-
-This path follows the workloads defined in .devcontainer/devcontainer.json and includes Azure, .NET, Node.js, Terraform, and Docker tooling out of the box.
+3. Open this repository in VS Code and select "Reopen in Container."
+4. The container runs post-create setup and installs the tools described in `.devcontainer/devcontainer.json` (.NET, Node.js, Azure CLI, Terraform, Docker, PowerShell).
 
 ### Option B: Local setup on Windows (winget)
 
-This is the fastest local setup for Windows 10/11.
-
 1. Clone the repository.
-2. Install tools using winget:
-    - .NET SDK 8, 9, 10
-    - OpenJDK
-    - PowerShell
-    - Git
-    - Docker Desktop
-    - Visual Studio 2022
-    - SQL Server Express (optional if using containers)
-
-3. Start the containerized dependencies:
-    - Run docker_setup.ps1
-
-4. Stop containers when finished:
-    - Run docker_down.ps1
+2. Install tools using winget (.NET SDK 10, PowerShell, Git, Docker Desktop, Visual Studio 2022, SQL Server Express if not using containers).
+3. Start the containerized dependencies: run `docker_setup.ps1`.
+4. Stop containers when finished: run `docker_down.ps1`.
 
 ### Option C: Local setup on Linux (apt)
 
-Use this if you want native tooling on Linux without Dev Containers.
-
-1. Install prerequisites using apt:
-    - Git
-    - Docker Engine / Docker Compose
-    - PowerShell
-    - .NET SDK 8, 9, 10
-    - OpenJDK
-    - Node.js LTS (optional)
-
-2. Start the containerized dependencies:
-    - Run docker_setup.sh
-
-3. Stop containers when finished:
-    - Run docker_down.sh
-
-### Option D: Node.js-focused setup (npm)
-
-Use this if you only need frontend tooling or Node.js-based automation.
-
-1. Install Node.js LTS (nvm or system package manager).
-2. Install project dependencies with npm.
-3. Run your Node.js workflow locally.
-4. Start containerized dependencies only if needed.
+1. Install prerequisites using apt (Git, Docker Engine/Compose, PowerShell, .NET SDK 10).
+2. Start the containerized dependencies: run `docker_setup.sh`.
+3. Stop containers when finished: run `docker_down.sh`.
 
 ## Database and local services
 
-The default Docker Compose setup runs a local SQL Server instance and other supporting services. The SQL Server container exposes localhost port 10433 and initializes a database named ProjectExample.
+The Docker Compose setup runs a local SQL Server instance and other supporting services. The SQL Server container exposes localhost port `10433` and currently initializes a placeholder database named `ProjectExample` — rename this to match the project (for example, `SystemUptimeTracker`) as part of implementing the API's data layer.
 
-WireMock HTTPS certificate generation uses `keytool`, which is provided by a Java Development Kit (JDK). If you plan to generate WireMock certificates locally, install OpenJDK (recommended) and ensure `keytool` is available on your PATH.
+Example connection string for local development:
 
-Use the following example connection string for local development:
-
+```text
 Server=127.0.0.1,10433;Database=ProjectExample;User Id=sa;Password=P@ssword123!;TrustServerCertificate=True;
+```
 
 Security note: the provided password is for local development only. Do not reuse it in production. Store secrets in your secret manager or environment configuration.
 
-## How to customize this template for your project
-
-Use this checklist to adapt the template for your own repository.
-
-1. Update the root README and project metadata files.
-2. Keep or remove containers based on what your app needs.
-3. Keep or remove DevOps scaffolding based on your CI/CD platform.
-4. Decide whether to use Dev Containers or local tool installation.
-5. Update or replace the LICENSE and CODEOWNERS for your organization.
-6. Remove example content you do not want to maintain.
-
-Recommended priority for copying into a new repository:
-
-- High priority:
-    - .github (Copilot instructions, workflows, and repo automation)
-    - devops (pipelines, manifests, and structure)
-    - src (starting point for application code)
-    - .editorconfig, .gitattributes, .gitignore
-    - README, LICENSE, CODEOWNERS
-- Medium priority:
-    - containers and Docker scripts
-    - Visual Studio settings files
-    - authoring and contributing docs
-- Low priority:
-    - example content or sample solutions you do not need
-
-## Dev Container workload summary
-
-The dev container is configured for the following workloads:
-
-- .NET SDK 8/9 and wasm-tools workload
-- Node.js LTS with npm, yarn, and pnpm
-- Azure CLI, Azure Developer CLI, and Bicep
-- Docker-in-Docker for container workflows
-- Terraform and TFLint
-- PowerShell, Python, Git, GitHub CLI
-- Java 21 (minimal install for tooling)
-
-If you remove any of these tools from your project, update .devcontainer/devcontainer.json accordingly.
+WireMock HTTPS certificate generation uses `keytool`, provided by a Java Development Kit. Install OpenJDK if you need to generate WireMock certificates locally.
 
 ## Documentation map
 
-Use the links below to find focused documentation in this repository. Each link includes a one-sentence description of what the document is for.
+- [docs/inital-spec.md](docs/inital-spec.md) — the original design conversation: architecture, uptime/session model, database schema, Shelly Plug integration options, and API contracts.
+- [.github/readme.md](.github/readme.md) — repository automation, Copilot configuration, and GitHub-specific guidance.
+- [containers/readme.md](containers/readme.md) — Docker Compose services and local dependency containers.
+- [containers/certs/readme.md](containers/certs/readme.md) — certificate setup for HTTPS and WireMock scenarios.
+- [devops/readme.md](devops/readme.md) — DevOps folder overview and how to use it in CI/CD.
+- [devops/terraform/readme.md](devops/terraform/readme.md) — Terraform layout and infrastructure guidance.
+- [src/readme.md](src/readme.md) — application source layout expectations.
 
-- [.github/readme.md](.github/readme.md) – Repository automation, Copilot configuration, and GitHub-specific guidance.
-- [containers/readme.md](containers/readme.md) – Docker Compose services and local dependency containers.
-- [containers/certs/readme.md](containers/certs/readme.md) – Certificate setup for HTTPS and WireMock scenarios.
-- [containers/extensions/readme.md](containers/extensions/readme.md) – VS Code extensions copied into container images.
-- [containers/mappings/readme.md](containers/mappings/readme.md) – Example mappings used by local container services.
-- [containers/\_\_files/readme.md](containers/__files/readme.md) – Example files used by local container services.
-- [devops/readme.md](devops/readme.md) – DevOps folder overview and how to use it in CI/CD.
-- [devops/manifest/readme.md](devops/manifest/readme.md) – Manifest templates and conventions for release artifacts.
-- [devops/pipelines/readme.md](devops/pipelines/readme.md) – CI/CD pipeline templates and conventions.
-- [devops/terraform/readme.md](devops/terraform/readme.md) – Terraform layout and infrastructure guidance.
-- [src/readme.md](src/readme.md) – Application source layout expectations and starter guidance.
+## Next steps
+
+Per the design conversation: the solution skeleton, shared heartbeat contracts, initial database entities, and a functioning agent-to-API heartbeat path (without Shelly integration) are the recommended starting point. Shelly Plug support, location/device inventory, and richer reporting can follow once that path works end-to-end.
 
 ## Troubleshooting
 
 - Ensure Docker Desktop or Docker Engine is running before starting containers.
-- If SQL Server does not start, check container logs and confirm the environment variables in containers/.env.
+- If SQL Server does not start, check container logs and confirm the environment variables in `containers/.env`.
 - If WireMock certificate generation fails, verify OpenJDK is installed and `keytool` is available on PATH.
-- For script execution issues on Windows, set PowerShell execution policy to allow local scripts.
+- For script execution issues on Windows, set the PowerShell execution policy to allow local scripts.
 
 ## Additional resources
 
@@ -168,7 +157,7 @@ Use the links below to find focused documentation in this repository. Each link 
 
 Built with accessibility in mind, but accessibility issues may still exist; please review and test with tools like Accessibility Insights.
 
-## Skills.sh Integration (Codex + Copilot)
+## AI skill tooling (Codex + Copilot)
 
 This repository uses the Skills CLI ecosystem at `https://skills.sh/` for skill discovery and installation.
 
@@ -181,14 +170,9 @@ npx skills add <owner/repo@skill> -g -y
 npx skills check
 ```
 
-Reference:
+Reference: `.github/skills/INDEX.md` (canonical skill discovery map).
 
-- `.github/skills/INDEX.md` (canonical skill discovery map)
-
-### Install Shared Skills Globally (Codex + Copilot)
-
-These skills are useful for both Codex and Copilot in this repository. You can
-paste the whole block into a PowerShell terminal to install them globally.
+### Install shared skills globally (Codex + Copilot)
 
 ```powershell
 npx skills add microsoft/github-copilot-for-azure@appinsights-instrumentation -g -y
@@ -199,11 +183,7 @@ npx skills add microsoft/github-copilot-for-azure@microsoft-docs -g -y
 npx skills add anthropics/skills@webapp-testing -g -y
 ```
 
-### Install Codex Skills Globally (Skills.sh)
-
-The following commands install Codex-focused skills discussed for this
-repository (excluding the shared skills listed above). You can paste the whole
-block into a PowerShell terminal to install them globally.
+### Install Codex skills globally (Skills.sh)
 
 ```powershell
 npx skills add microsoft/github-copilot-for-azure@azure-ai -g -y
@@ -214,11 +194,7 @@ npx skills add vercel-labs/skills@find-skills -g -y
 npx skills add microsoft/github-copilot-for-azure@microsoft-foundry -g -y
 ```
 
-### Install Copilot Skills Globally (Skills.sh)
-
-The following commands install the Copilot-focused skills discussed for this
-repository (excluding the shared skills listed above). You can paste the whole
-block into a PowerShell terminal to install them globally.
+### Install Copilot skills globally (Skills.sh)
 
 ```powershell
 npx skills add microsoft/github-copilot-for-azure@azure-role-selector -g -y
