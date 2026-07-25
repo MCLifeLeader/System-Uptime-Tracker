@@ -1,0 +1,81 @@
+{
+    "version": "1.0",
+    "components": [
+        "Microsoft.VisualStudio.Component.CoreEditor",
+        "Microsoft.VisualStudio.Workload.CoreEditor",
+        "Microsoft.VisualStudio.Component.Roslyn.Compiler",
+        "Microsoft.Component.MSBuild",
+        "Microsoft.VisualStudio.Component.Roslyn.LanguageServices",
+        "Microsoft.VisualStudio.Component.NuGet",
+        "Microsoft.VisualStudio.Component.IntelliCode",
+        "Component.VisualStudio.GitHub.Copilot",
+
+        // Core .NET 10.0 Development
+        "Microsoft.NetCore.Component.SDK",
+        "Microsoft.NetCore.Component.Runtime.10.0",
+        "Microsoft.NetCore.Component.DevelopmentTools",
+        "Microsoft.NetCore.Component.Web",
+
+        // ASP.NET Core & Web Development
+        "Microsoft.VisualStudio.Workload.NetWeb",
+        "Microsoft.VisualStudio.Component.Web",
+        "Microsoft.VisualStudio.Component.AspNet",
+        "Microsoft.VisualStudio.ComponentGroup.Web",
+        "Microsoft.VisualStudio.Component.WebDeploy",
+        "Microsoft.VisualStudio.Component.AppInsights.Tools",
+        "Microsoft.VisualStudio.Component.IISExpress",
+
+        // TypeScript & JavaScript (for Next.js client)
+        "Microsoft.VisualStudio.Component.TypeScript.TSServer",
+        "Microsoft.VisualStudio.Component.JavaScript.TypeScript",
+        "Microsoft.VisualStudio.Component.JavaScript.Diagnostics",
+        "Component.Microsoft.WebTools.BrowserLink.WebLivePreview",
+
+        // Node.js Workload (for Next.js development)
+        "Microsoft.VisualStudio.Workload.Node",
+        "Microsoft.VisualStudio.Component.Node.Tools",
+
+        // Aspire Orchestration
+        "aspire",
+
+        // SQL Server Support (current health checks + future database projects)
+        "Microsoft.VisualStudio.Component.SQL.SSDT",
+        "Microsoft.VisualStudio.Component.SQL.DataSources",
+        "Microsoft.VisualStudio.Component.SQL.LocalDB.Runtime",
+        "Microsoft.VisualStudio.Component.MSSQL.CMDLnUtils",
+
+        // Docker Support
+        "Microsoft.VisualStudio.Component.DockerTools",
+
+        // Azure Workload
+        "Microsoft.VisualStudio.Workload.Azure",
+        "Microsoft.VisualStudio.Component.Azure.ClientLibs",
+        "Microsoft.VisualStudio.ComponentGroup.Azure.Prerequisites",
+        "Microsoft.VisualStudio.Component.Azure.Compute.Emulator",
+        "Microsoft.VisualStudio.Component.Azure.ResourceManager.Tools",
+        "Microsoft.VisualStudio.ComponentGroup.Azure.ResourceManager.Tools",
+        "Microsoft.VisualStudio.Component.Azure.AuthoringTools",
+        "Microsoft.VisualStudio.Component.Azure.Waverton",
+        "Microsoft.VisualStudio.Component.Azure.Waverton.BuildTools",
+        "Microsoft.VisualStudio.Component.Common.Azure.Tools",
+
+        // Testing & Diagnostics
+        "Microsoft.VisualStudio.Component.DiagnosticTools",
+        "Microsoft.VisualStudio.Component.LiveUnitTesting",
+        "Microsoft.VisualStudio.Component.Debugger.JustInTime",
+
+        // Development Tools
+        "Microsoft.VisualStudio.Component.TextTemplating",
+        "Component.Microsoft.VisualStudio.RazorExtension",
+        "Microsoft.VisualStudio.Component.WslDebugging",
+
+        // OpenJDK (for build processes requiring Java)
+        "Component.OpenJDK",
+
+        // Live Share for collaboration
+        "Component.Microsoft.VisualStudio.LiveShare"
+    ],
+    "extensions": [
+        "https://marketplace.visualstudio.com/items?itemName=ErikEJ.EFCorePowerTools"
+    ]
+}
