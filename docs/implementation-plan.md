@@ -246,7 +246,7 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 
 ## Workstreams
 
-## Backend API And Contracts
+### Backend API And Contracts
 
 - Registration endpoints.
 - Heartbeat ingestion.
