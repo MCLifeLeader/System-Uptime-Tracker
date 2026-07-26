@@ -33,15 +33,17 @@ Create a stable decision baseline before project scaffolding expands.
 
 ### Phase 1 Outcome
 
-Support Windows and Ubuntu computer monitoring without any power-meter dependency.
+Support Windows and Ubuntu computer monitoring without any power-meter dependency, while establishing the shared API and basic owner-management portal needed to operate the deployment.
 
 ### Phase 1 Work Items
 
 - Scaffold API, Windows Service, Linux daemon, and shared libraries.
+- Scaffold the NodeJS management portal.
 - Implement agent identity persistence.
 - Implement heartbeat contract and publishing client.
 - Implement ASP.NET Core Identity with local user accounts, the `Owner` role, and the `DeviceAccount` entity (see [architecture-overview.md](./architecture-overview.md#authentication-and-authorization) and [domain-model.md](./domain-model.md)). Support both a shared device account and dedicated per-device accounts, at the owner's discretion.
 - Implement a token endpoint issuing JWT access and refresh tokens for device accounts, used by the Windows Service and Linux daemon agents; support periodic access-token rotation via refresh rather than resending the original credential.
+- Implement owner-account login for the NodeJS portal against the same API, plus the minimum owner-facing API endpoints and portal views needed to create/manage device accounts and inspect registered machines.
 - Implement account lockout on repeated failed authentication attempts and rate limiting on the token endpoint, as baseline brute-force protection for the most exposed part of the system.
 - Persist machines, heartbeats, runtime sessions, and storage telemetry in SQL Server.
 - Implement heartbeat gap handling and runtime-session reconstruction.
@@ -50,6 +52,7 @@ Support Windows and Ubuntu computer monitoring without any power-meter dependenc
 ### Phase 1 Exit Criteria
 
 - A Windows or Ubuntu machine can register and send heartbeats over HTTPS.
+- An owner can sign into the NodeJS portal and manage device accounts through the shared API.
 - The API stores heartbeat history and derives runtime sessions.
 - The agent can survive temporary API outages through retry behavior.
 
@@ -63,7 +66,9 @@ Make the monitoring system operationally deployable across target environments.
 
 - Add Windows Service installation guidance and packaging.
 - Add systemd unit definition and installation guidance.
+- Add NodeJS portal build, packaging, and deployment guidance.
 - Define local configuration model for production deployment.
+- Define portal-to-API configuration, origin strategy, and session/token handling model.
 - Finalize filesystem locations for state, logs, and retry queue storage.
 - Add deployment-time configuration validation.
 - Add basic operational runbooks for start, stop, upgrade, and diagnostics.
@@ -72,7 +77,8 @@ Make the monitoring system operationally deployable across target environments.
 
 - The Windows agent is installable as a service.
 - The Ubuntu agent is installable as a systemd-managed daemon.
-- API and agents expose enough health and logs for first-line troubleshooting.
+- The NodeJS portal can be deployed and connected to the shared API.
+- API, portal, and agents expose enough health and logs for first-line troubleshooting.
 
 ## Phase 3: Independent Power-Meter Support
 
@@ -88,6 +94,7 @@ Add Shelly support without changing the machine-monitoring core contract.
 - Implement HTTP Basic Auth with hashed API-key validation as a second authentication scheme for `DeviceAccount`s that cannot perform the JWT login/refresh flow, plus owner-facing endpoints to issue, view (once), and revoke a `DeviceAccount`'s API key.
 - Implement machine-to-meter and meter-to-device association endpoints, and the owner-facing device-account management endpoints (create/remove/reassign device accounts) these depend on.
 - Implement location model and effective-dated meter placement.
+- Extend the NodeJS portal with owner-facing screens for power-meter registration, association management, and collected power-data views.
 - Validate dedicated, shared, and collector-only relationship handling.
 
 ### Phase 3 Exit Criteria
@@ -123,8 +130,17 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 - Heartbeat ingestion.
 - Power-reading ingestion.
 - Association management endpoints.
+- Owner-facing administrative and data-read endpoints consumed by the NodeJS portal.
 - Token issuance/refresh (JWT) and device-account/API-key management endpoints.
 - Validation and idempotency rules.
+
+## Frontend Portal
+
+- Owner authentication flow against the shared API.
+- Device-account management UI.
+- Machine and telemetry data views.
+- Power-meter, location, and association management views.
+- Session, token, and API-integration hardening.
 
 ## Agent Runtime
 
@@ -154,6 +170,7 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 - `*.UnitTests` projects for session derivation, contracts, and normalization.
 - `*.IntegrationTests` projects for heartbeat ingestion and power-meter association rules.
 - `*.FunctionalTests` projects for end-to-end API and agent workflow verification where needed.
+- Portal unit, integration, and functional tests for owner login, device-account management, and core data-view workflows.
 - Packaging smoke tests for Windows and Ubuntu deployment paths.
 - Thin Windows Service and Linux daemon host projects should default to shared-core coverage plus integration and packaging checks unless platform-specific logic grows large enough to justify dedicated test projects.
 
@@ -174,6 +191,7 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 - Session reconstruction rules may need tuning once real-world heartbeat gaps are observed.
 - Enrollment and authentication complexity may expand quickly if unauthenticated discovery is allowed.
 - Supporting two authentication schemes (JWT and Basic Auth/API key) doubles the surface that must be kept hardened — a weakness in the less-used API-key path (for example, a missed rate limit or an unhashed key in a log) undermines the security goal even if the JWT path is solid.
+- A separate NodeJS portal introduces an additional session and deployment surface; if it bypasses the shared API contract or mishandles owner tokens, the system's authorization model becomes inconsistent even if the API itself is correct.
 - Power-meter identity conflicts may arise if meters are discovered from multiple ingestion paths.
 - Historical association rules can become difficult to enforce without clear administrative workflows.
 
@@ -183,7 +201,8 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 - Should the retry queue start in SQLite or in a simpler file-based format? [inital-spec.md](./inital-spec.md) already recommends a SQLite-backed queue with a 7-day/100 MB cap and a 15s/30s/1m/5m/15m backoff progression — this question is whether to adopt that recommendation as-is or revisit it, not whether to start from a blank slate.
 - Is the first agent registration flow self-service, pre-provisioned, or approval-based?
 - Should power readings travel inside heartbeat payloads, through separate endpoints, or both?
-- What minimum administrative API surface is required before any UI exists?
+- What minimum owner-facing administrative and data-read API surface is required for the first management-portal release?
+- Should the NodeJS portal act purely as a server-rendered/BFF-style client to the API, or is direct browser-to-API access acceptable for selected read operations?
 - What are the accepted default values for heartbeat interval, offline threshold, and session-break threshold? [inital-spec.md](./inital-spec.md) proposes 60 seconds, 3 minutes, and 5 minutes respectively as illustrative starting points; [architecture-overview.md](./architecture-overview.md) repeats them but they are not yet a confirmed decision.
 - No document yet enumerates the concrete API routes, request/response payloads, and token endpoint contract (login/refresh request and response shapes, JWT claims such as `AgentId`/`MachineId`, access-token lifetime, Basic Auth header format) as an accepted contract — today these only exist as examples inside the raw [inital-spec.md](./inital-spec.md) transcript, and that transcript predates the Owner/DeviceAccount/JWT/Basic-Auth decision entirely. A dedicated API contracts document (or an addition to this plan) should be produced before or during Phase 1 so the API and agent implementations build against the same accepted shapes.
 - Should device accounts be provisioned one-per-machine by default, or is a shared account the default with dedicated per-device accounts as an opt-in? (See [product-scope.md](./product-scope.md).)

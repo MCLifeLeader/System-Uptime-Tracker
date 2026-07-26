@@ -2,11 +2,12 @@
 
 ## System Summary
 
-The preferred design is a three-application deployment model backed by shared libraries and a SQL Server database.
+The preferred design is a four-application deployment model backed by shared libraries and a SQL Server database. The ASP.NET Core API remains the single backend for both device reporting and the owner-facing management portal.
 
 ## Deployable Applications
 
 - `SystemUptimeTracker.Api`: ASP.NET Core ingestion API.
+- `SystemUptimeTracker.Portal`: NodeJS web frontend and management portal for owner-facing administration and operational data access.
 - `SystemUptimeTracker.WindowsService`: Windows background service.
 - `SystemUptimeTracker.LinuxDaemon`: Ubuntu systemd-managed daemon.
 
@@ -29,6 +30,10 @@ src/
   SystemUptimeTracker.Api.UnitTests/
   SystemUptimeTracker.Api.IntegrationTests/
   SystemUptimeTracker.Api.FunctionalTests/
+  SystemUptimeTracker.Portal/
+  SystemUptimeTracker.Portal.UnitTests/
+  SystemUptimeTracker.Portal.IntegrationTests/
+  SystemUptimeTracker.Portal.FunctionalTests/
   SystemUptimeTracker.WindowsService/
   SystemUptimeTracker.LinuxDaemon/
   SystemUptimeTracker.Agent.Core/
@@ -50,12 +55,16 @@ The proposed solution shape is illustrative rather than exhaustive. Additional t
 
 ```mermaid
 flowchart LR
+  OW[Owner Browser]
+  PTL[NodeJS Management Portal]
     WS[Windows Service Agent]
     LD[Linux Daemon Agent]
     SH[Shelly Plug US Gen4]
     API[Telemetry API]
     DB[(SQL Server)]
 
+  OW -->|HTTPS| PTL
+  PTL -->|HTTPS admin and data API calls| API
     WS -->|HTTPS heartbeats and telemetry| API
     LD -->|HTTPS heartbeats and telemetry| API
     SH -->|Local HTTP RPC via agent polling| WS
@@ -77,16 +86,26 @@ The Windows and Linux applications should be thin hosting shells over shared age
 - Optionally poll configured Shelly devices.
 - Publish telemetry to the API over HTTPS.
 
+### Portal Application
+
+The NodeJS management portal should:
+
+- Authenticate owner users against the same ASP.NET Core API used by reporting devices.
+- Provide owner-facing workflows for device-account management, machine and power-meter administration, and location/device association management.
+- Provide a human-friendly interface for interacting with collected machine and power data.
+- Rely on the API for all business logic and persistence rather than connecting directly to SQL Server.
+- Avoid introducing a second backend contract surface; it should consume the same versioned `/api/v1` API as other clients.
+
 ### API Application
 
 The API should:
 
-- Issue and validate JWT bearer tokens for reporting agents, operators, and other telemetry producers, backed by ASP.NET Core Identity local accounts (see [Authentication And Authorization](#authentication-and-authorization)).
+- Issue and validate JWT bearer tokens for reporting agents, owner users, and other telemetry producers, backed by ASP.NET Core Identity local accounts (see [Authentication And Authorization](#authentication-and-authorization)).
 - Accept machine heartbeats and optional power readings.
 - Accept independent power-meter registration and future direct power ingestion.
 - Normalize payloads into the shared data model.
 - Calculate or update runtime sessions based on heartbeat continuity.
-- Expose health endpoints and administrative endpoints needed for association management.
+- Expose health endpoints, owner-facing administrative endpoints, and owner-facing read endpoints needed by the NodeJS management portal.
 - Version all routes under `/api/v1` so future contract changes do not silently break deployed agents. See [inital-spec.md](./inital-spec.md) for the endpoint shapes this convention was drawn from; a dedicated API contracts document should formalize the accepted route list before Phase 1 implementation begins.
 
 ### Database Layer
@@ -121,7 +140,19 @@ Machines and power meters must not depend on each other for creation. Associatio
 
 Agents and power producers send data to the API. The server does not initiate control-plane traffic to monitored devices.
 
+### Decision 6: Shared API For Devices And Portal
+
+The NodeJS management portal and the reporting devices share the same ASP.NET Core API. Device ingestion and owner-facing administration are separated by route grouping and authorization scope, not by separate backend services. The portal must not bypass the API and read or write SQL Server directly.
+
 ## Core Data Flows
+
+### Owner Portal Flow
+
+1. Owner opens the NodeJS management portal in a browser.
+2. Portal authenticates the owner against the shared ASP.NET Core API.
+3. Portal calls owner-authorized API endpoints to manage device accounts, machines, power meters, locations, and associations.
+4. Portal calls owner-authorized read endpoints to display collected machine and power telemetry.
+5. API enforces authorization and persists any resulting changes in SQL Server.
 
 ### Device Account Provisioning And First Connection Flow
 
@@ -172,19 +203,27 @@ Agents and power producers send data to the API. The server does not initiate co
 - Support IIS, Azure App Service, or Linux-hosted Kestrel deployments.
 - Use SQL Server in all durable environments.
 
+### Portal
+
+- Run as a NodeJS web application.
+- Be deployable independently from the API, while consuming the same API over HTTPS.
+- Be hostable behind the same reverse proxy/domain family as the API, or on a separate origin with tightly scoped CORS.
+- Never require direct database connectivity.
+
 Concrete deployment identifiers (Windows service name, systemd unit name, install and data directories, config file name) still need to be defined under the `SystemUptimeTracker` naming established in this document. [inital-spec.md](./inital-spec.md) uses placeholder `ComputerTelemetry`/`computer-telemetry` names from before the project was renamed; do not carry those literal strings into implementation.
 
 ## Cross-Cutting Concerns
 
 ### Authentication And Authorization
 
-**Decided:** the API authenticates callers using **ASP.NET Core Identity** with **local user accounts** — no external identity provider (Azure AD, Google, etc.) is in scope for the first release. The top priority driving this design is minimizing the ingestion API's attack surface: every non-health endpoint requires authentication, credentials are never stored in plaintext, and device-facing credentials carry only enough privilege to submit telemetry. This supersedes the `Authorization: AgentKey ...` header scheme shown in [inital-spec.md](./inital-spec.md).
+**Decided:** the API authenticates callers using **ASP.NET Core Identity** with **local user accounts** — no external identity provider is in scope for the first release. The top priority driving this design is minimizing the ingestion API's attack surface: every non-health endpoint requires authentication, credentials are never stored in plaintext, and device-facing credentials carry only enough privilege to submit telemetry. This supersedes the `Authorization: AgentKey ...` header scheme shown in [inital-spec.md](./inital-spec.md).
 
 #### Account Model: Owner And Device Accounts
 
 - **Owner account**: a human user (an ASP.NET Core Identity account in the `Owner` role) who administers the deployment. An owner creates and removes device accounts, and decides whether devices share one account or each get their own.
 - **Device account**: modeled by the `DeviceAccount` entity (see [domain-model.md](./domain-model.md)), which wraps an Identity user with the extra metadata authentication needs — which owner manages it, which authentication methods it's allowed to use, and (if enabled) its hashed API key. A `Machine` references the `DeviceAccount` currently authorized to report on its behalf via `Machine.DeviceAccountId`; multiple machines may point at the same device account (shared) or each may have its own (dedicated) — the owner's choice, not a fixed system rule.
 - The machine's own `AgentId` — not the account used to authenticate — remains the durable identity written onto every heartbeat and reading. The device account proves the caller is allowed to write; `AgentId` says which machine the data is about.
+- Owner users sign into the NodeJS portal using the same API and ASP.NET Core Identity account store, but they use owner-authorized portal/admin/read endpoints rather than telemetry-only ingestion routes.
 
 #### Two Authentication Schemes, One Authorization Scope
 
@@ -193,9 +232,12 @@ Every device account is configured to use one (or both) of two schemes, chosen b
 1. **JWT bearer tokens (primary).** Used by the Windows Service and Linux daemon agents. When a service is first registered, it is supplied its device account's credentials out-of-band (placed into local configuration at install time). On first run, the agent exchanges those credentials once at a token endpoint for a signed JWT access token plus a refresh token, backed by ASP.NET Core Identity. From then on the agent presents the access token as a bearer token on every heartbeat/telemetry call and rotates it via the refresh token on a periodic basis — it does not resend the original credential on every request. ASP.NET Core's built-in Identity API endpoints (`MapIdentityApi<TUser>()`) are the natural fit for issuing these tokens without a separate token-service dependency; the concrete endpoint/claims/lifetime contract is tracked in [implementation-plan.md](./implementation-plan.md).
 2. **HTTP Basic Auth with an API key (fallback).** For devices that cannot perform a login/refresh flow — for example, a Shelly Plug US Gen4 driven by a webhook, MQTT bridge, or on-device script — the device account's "password" is a long-lived, hashed, individually revocable **API key**, never a real changing password. The client sends `Authorization: Basic base64(deviceAccountName:apiKey)` over HTTPS. This trades some of the JWT flow's exposure-reduction for compatibility with constrained clients, so it is offered per device account rather than as the default.
 
+For the NodeJS portal, owner authentication should use the API's owner-account login flow only. The portal should not use device-account Basic Auth, and it should avoid exposing long-lived credentials in browser storage. If the NodeJS layer stores API-issued refresh tokens, they should remain server-side or inside secure, `HttpOnly` cookies rather than in local storage.
+
 #### Hardening Baseline
 
 - HTTPS-only for all traffic, without exception — this matters even more once Basic Auth is in play, since it carries the credential (base64-encoded, not encrypted) on every request.
+- If the NodeJS portal and API are hosted on different origins, CORS must be restricted to the portal origin and owner-authenticated state-changing requests must be protected from CSRF when cookie-based session patterns are used.
 - API keys and Identity password hashes are salted/hashed at rest; a plaintext API key is shown to the owner exactly once, at creation or rotation time, and never again.
 - Account lockout after repeated failed authentication attempts (ASP.NET Core Identity's built-in lockout), plus rate limiting on the token and Basic Auth entry points, to blunt credential-stuffing and brute-force attempts against the most exposed part of the system.
 - API keys are individually revocable and rotatable by the owning owner account without needing to touch the underlying Identity user.
