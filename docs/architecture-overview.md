@@ -4,6 +4,11 @@
 
 The preferred design is a four-application deployment model backed by shared libraries and a SQL Server database. The ASP.NET Core API remains the single backend for both device reporting and the owner-facing management portal.
 
+The current repository baseline reaches this target through a retained Next.js
+starter project named `SystemUptimeTracker.Web`. Unless topology alignment
+renames it, that project is the implementation vehicle for the
+`SystemUptimeTracker.Portal` role described in this document.
+
 ## Deployable Applications
 
 - `SystemUptimeTracker.Api`: ASP.NET Core ingestion API.
@@ -17,6 +22,33 @@ The preferred design is a four-application deployment model backed by shared lib
 - `SystemUptimeTracker.Contracts`: Shared API contracts and payload models.
 - `SystemUptimeTracker.Data`: Entity Framework Core data layer, entities, and migrations.
 - `SystemUptimeTracker.Power.Shelly`: Shelly normalization and provider logic.
+
+## Delivery Perspective
+
+Implementation should be reasoned about through two coupled delivery tracks.
+
+### Backend And Platform Track
+
+- Owns the ASP.NET Core API, local Identity integration, SQL Server
+  persistence, shared contracts, agent runtime, host applications, and power
+  ingestion services.
+- Moves first whenever the portal depends on new contracts, schema, or
+  authorization rules.
+- Publishes stable route, payload, and trace-correlation behavior for the
+  portal and agents to consume.
+
+### Frontend And Portal Track
+
+- Owns the NodeJS owner portal built on the retained Next.js shell.
+- Implements owner sign-in, secure session handling, typed API-service calls,
+  device-account administration, machine and power views, localization, and
+  trace-aware user-facing error handling.
+- Must consume the shared API surface rather than inventing a second backend
+  contract or reading SQL Server directly.
+
+These tracks converge on the versioned `/api/v1` surface and should be
+sequenced according to [implementation-plan.md](./implementation-plan.md) and
+the execution stories under [stories/2026/07/README.md](./stories/2026/07/README.md).
 
 ## Proposed Solution Shape
 
@@ -95,6 +127,10 @@ The NodeJS management portal should:
 - Provide a human-friendly interface for interacting with collected machine and power data.
 - Rely on the API for all business logic and persistence rather than connecting directly to SQL Server.
 - Avoid introducing a second backend contract surface; it should consume the same versioned `/api/v1` API as other clients.
+- Hold long-lived owner authentication state on the server side or inside
+  secure `HttpOnly` cookies rather than exposing it to browser storage.
+- Preserve backend trace IDs and generic error semantics when surfacing API
+  failures to end users.
 
 ### API Application
 
@@ -107,6 +143,10 @@ The API should:
 - Calculate or update runtime sessions based on heartbeat continuity.
 - Expose health endpoints, owner-facing administrative endpoints, and owner-facing read endpoints needed by the NodeJS management portal.
 - Version all routes under `/api/v1` so future contract changes do not silently break deployed agents. See [inital-spec.md](./inital-spec.md) for the endpoint shapes this convention was drawn from; a dedicated API contracts document should formalize the accepted route list before Phase 1 implementation begins.
+- Expose contracts stable enough that the portal can generate typed service
+  integrations and request or response validators from the same accepted shapes.
+- Keep the owner-facing portal workflows and device-facing ingestion workflows
+  on one authorization model, while separating them by route purpose and scope.
 
 ### Database Layer
 
