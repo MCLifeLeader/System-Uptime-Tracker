@@ -114,7 +114,7 @@ The following work can proceed in parallel after its predecessors are met:
 | Session lane | Heartbeat persistence is stable | `EPIC-06` |
 | Portal lane | Owner authorization and machine APIs are stable | `EPIC-11` |
 | Platform lane | Agent core and queue contracts are stable | `EPIC-09`, `EPIC-10` |
-| Power lane | Contracts, persistence, and device authorization are stable | `EPIC-12`, then `EPIC-13` |
+| Power lane | Contracts, persistence, and device authorization are stable | `EPIC-12`, then `EPIC-13`; `EPIC-11` supplies the shared device-account and API-key portal workflows |
 | Reporting lane | Session, portal, and power read models are stable | `EPIC-15` |
 
 ## Epic Summary
@@ -197,7 +197,7 @@ diverge.
 | TASK-0206 | TASK-0007, TASK-0102 | Define power-meter registration, power reading, location, monitored-device, and effective-dated association contracts. | Dedicated, shared, and collector-only examples are represented without duplicating measured power. |
 | TASK-0207 | TASK-0202, TASK-0203, TASK-0206 | Define idempotency keys: `AgentId + SequenceNumber` for heartbeats and meter identity plus `MessageId` for readings. | Duplicate examples specify the same response and no duplicate persistence side effect. |
 | TASK-0208 | TASK-0201 | Standardize validation errors on Problem Details, correlation headers, UTC timestamp format, numeric units, and unsupported payload-version responses. | OpenAPI examples and endpoint tests use one error shape and one unit convention. |
-| TASK-0209 | TASK-0202, TASK-0203, TASK-0204, TASK-0205, TASK-0206, TASK-0208 | Generate or maintain the API OpenAPI document and add a compatibility test for the accepted v1 surface. | CI detects accidental route, schema, required-field, or response-code changes. |
+| TASK-0209 | TASK-0202, TASK-0203, TASK-0204, TASK-0205, TASK-0206, TASK-0207, TASK-0208 | Generate or maintain the API OpenAPI document, executable HTTP examples, and portal-consumable typed or Zod validators for the accepted v1 surface. | CI detects accidental route, schema, required-field, idempotency, or response-code changes, and verifies the examples and portal validators against the OpenAPI contract. |
 
 **Epic exit:** API, portal, and agents can implement against accepted v1
 contracts without sharing runtime implementation assemblies.
@@ -239,6 +239,7 @@ keys as the constrained-device fallback.
 | TASK-0407 | TASK-0404, TASK-0405 | Apply lockout and partitioned rate limits to password, token, refresh, and Basic Auth entry points without blocking health probes. | Automated tests prove threshold behavior and recovery after the configured window. |
 | TASK-0408 | TASK-0401, TASK-0406 | Require authentication on every non-health route and explicit owner/device policies by route group. | A route inventory test fails when an endpoint lacks expected authorization metadata. |
 | TASK-0409 | TASK-0403, TASK-0408 | Audit logs for account creation, disablement, key issue/rotation/revocation, failed authentication, and denied authorization using identifiers rather than secrets. | Log-capture tests verify event presence and secret redaction. |
+| TASK-0410 | TASK-0301, TASK-0401 | Implement a one-time first-owner bootstrap path using deployment-supplied secret material, explicit startup validation, and automatic closure after an owner exists. | Integration tests prove bootstrap is unavailable after first-owner creation, rejects missing or weak configuration, and never persists or logs bootstrap secrets. |
 
 **Epic exit:** Owner and device callers authenticate through supported schemes,
 receive only required permissions, and cannot cross account or machine
@@ -256,7 +257,7 @@ heartbeats through an authenticated end-to-end path.
 | TASK-0503 | TASK-0207, TASK-0502 | Make heartbeat processing atomic and idempotent under sequential and concurrent duplicate delivery. | Parallel duplicate requests produce one heartbeat and one storage-telemetry set. |
 | TASK-0504 | TASK-0502 | Normalize OS, architecture, machine name, agent version, CPU, memory, and storage values without silently coercing invalid data. | Boundary tests cover zero, maximum, missing, NaN-equivalent, and out-of-range values. |
 | TASK-0505 | TASK-0502 | Update machine `FirstSeenAtUtc`, `LastSeenAtUtc`, metadata, and registration state using server-authoritative rules. | Out-of-order queued heartbeats cannot move `LastSeenAtUtc` backward or overwrite newer metadata incorrectly. |
-| TASK-0506 | TASK-0502 | Attach or generate a correlation identifier and emit structured ingestion success/failure metrics without machine secrets or raw credentials. | Integration tests correlate request logs with the persisted heartbeat identifier. |
+| TASK-0506 | TASK-0502 | Attach or generate a correlation identifier and emit structured ingestion logs, success/failure metrics, and health diagnostics without machine secrets or raw credentials. | Integration tests correlate request logs with the persisted heartbeat identifier and prove degraded ingestion is visible through health or diagnostic signals. |
 | TASK-0507 | TASK-0503, TASK-0504, TASK-0505 | Add SQL Server integration tests for registration through heartbeat persistence, including retry and out-of-order delivery. | Tests run against an isolated migrated SQL Server database and leave no shared state. |
 | TASK-0508 | TASK-0507 | Add an end-to-end smoke client that registers a machine, obtains authorization, posts a heartbeat, and reads it as an owner. | QA automation completes the flow using public HTTP contracts only. |
 
@@ -290,11 +291,11 @@ hosts for identity, scheduling, collection, authentication, and publishing.
 | Task | Depends on | Implementation detail | Acceptance evidence |
 |---|---|---|---|
 | TASK-0701 | TASK-0103, TASK-0202, TASK-0203 | Create `SystemUptimeTracker.Agent.Core` and its unit-test project with no Windows Service or systemd hosting dependency. | Project builds on Windows and Linux and exposes host-neutral interfaces. |
-| TASK-0702 | TASK-0701 | Implement atomic first-run `AgentId` creation and load with corrupt-file handling and an OS-supplied durable-state path. | Parallel starts converge on one ID; restart preserves it; corruption produces an actionable failure. |
+| TASK-0702 | TASK-0701 | Define the durable local identity-state boundary and implement atomic first-run `AgentId` creation and load with corrupt-file handling and an OS-supplied durable-state path. | Parallel starts converge on one ID; restart preserves it; corruption produces an actionable failure; secret-bearing state is delegated to protected storage. |
 | TASK-0703 | TASK-0701 | Define platform telemetry provider interfaces and normalized snapshots for OS, architecture, boot identity/time, CPU, memory, and storage. | Contract mapping tests produce valid `TASK-0203` payloads. |
 | TASK-0704 | TASK-0703 | Implement Windows telemetry collection using least-privilege supported APIs and cancellation-aware asynchronous I/O. | Tests or controlled probes cover unavailable counters and inaccessible volumes without terminating the worker. |
 | TASK-0705 | TASK-0703 | Implement Ubuntu telemetry collection from stable OS interfaces with bounded reads and explicit parsing failures. | Tests use fixture data for supported Ubuntu formats and reject malformed values. |
-| TASK-0706 | TASK-0702, TASK-0404 | Implement bootstrap login, protected refresh-token storage, proactive access-token refresh, and disabled/revoked response handling. | Fake-server tests cover first login, refresh, expiry, revocation, and restart without secret logging. |
+| TASK-0706 | TASK-0702, TASK-0404 | Implement bootstrap login, durable protected token and refresh-metadata storage, proactive access-token refresh, and disabled/revoked response handling. | Fake-server tests cover first login, refresh, expiry, revocation, corrupt protected state, and restart without plaintext persistence or secret logging. |
 | TASK-0707 | TASK-0702, TASK-0703, TASK-0706 | Implement the cancellation-aware worker loop with configurable interval, monotonic sequence numbers, and non-overlapping collection cycles. | Virtual-time tests prove interval behavior, cancellation, overrun handling, and sequence persistence. |
 | TASK-0708 | TASK-0502, TASK-0707 | Implement the typed HTTPS publishing client with bounded timeouts, contract version header, correlation ID, and response classification. | Fake-server tests distinguish retryable, terminal, reauthentication, and configuration failures. |
 | TASK-0709 | TASK-0707, TASK-0708 | Add lifecycle signals for agent start and graceful stop while leaving runtime sessions server-authoritative. | API integration test records lifecycle context without accepting a client-authored session. |
@@ -367,7 +368,7 @@ the shared API only.
 
 | Task | Depends on | Implementation detail | Acceptance evidence |
 |---|---|---|---|
-| TASK-1101 | TASK-0401, TASK-0404 | Adapt existing Next.js authentication to the owner API flow; keep refresh credentials server-side or in secure `HttpOnly`, `Secure`, and appropriate `SameSite` cookies. | Browser tests prove login, logout, expiry, refresh, and anonymous redirect without local-storage tokens. |
+| TASK-1101 | TASK-0209, TASK-0401, TASK-0404 | Adapt existing Next.js authentication to the owner API flow and establish typed service modules with runtime validation from the accepted OpenAPI contract; keep refresh credentials server-side or in secure `HttpOnly`, `Secure`, and appropriate `SameSite` cookies. | Contract and browser tests prove typed request/response validation, login, logout, expiry, refresh, and anonymous redirect without local-storage tokens. |
 | TASK-1102 | TASK-1101 | Implement CSRF protection for cookie-authenticated state changes and tightly scoped CORS when portal and API origins differ. | Cross-origin and missing-antiforgery tests fail while valid same-site requests pass. |
 | TASK-1103 | TASK-0403, TASK-1101 | Build device-account list/create/edit/disable/delete/reassign and API-key rotate/revoke flows, with one-time key presentation. | Owner can complete each workflow by keyboard; plaintext key disappears after leaving the confirmation view. |
 | TASK-1104 | TASK-0505, TASK-1101 | Build paginated machine inventory and detail views showing registration, last seen, OS, version, and assigned account. | Empty, loading, error, unauthorized, and populated states have component and browser coverage. |

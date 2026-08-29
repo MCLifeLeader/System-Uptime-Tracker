@@ -58,7 +58,7 @@ task file to follow every concrete predecessor link.
 
 | Task | Objective | Depends on | Initial status |
 |---|---|---|---|
-| [TASK-1101](../tasks/TASK-1101.md) | Adapt existing Next.js authentication to the owner API flow | [TASK-0401](../tasks/TASK-0401.md), [TASK-0404](../tasks/TASK-0404.md) | Not started |
+| [TASK-1101](../tasks/TASK-1101.md) | Adapt existing Next.js authentication to the owner API flow and establish typed service modules with runtime validation from the accepted OpenAPI contract | [TASK-0209](../tasks/TASK-0209.md), [TASK-0401](../tasks/TASK-0401.md), [TASK-0404](../tasks/TASK-0404.md) | Not started |
 | [TASK-1102](../tasks/TASK-1102.md) | Implement CSRF protection for cookie-authenticated state changes and tightly scoped CORS when portal and API origins differ | [TASK-1101](../tasks/TASK-1101.md) | Not started |
 | [TASK-1103](../tasks/TASK-1103.md) | Build device-account list/create/edit/disable/delete/reassign and API-key rotate/revoke flows, with one-time key presentation | [TASK-0403](../tasks/TASK-0403.md), [TASK-1101](../tasks/TASK-1101.md) | Not started |
 | [TASK-1104](../tasks/TASK-1104.md) | Build paginated machine inventory and detail views showing registration, last seen, OS, version, and assigned account | [TASK-0505](../tasks/TASK-0505.md), [TASK-1101](../tasks/TASK-1101.md) | Not started |

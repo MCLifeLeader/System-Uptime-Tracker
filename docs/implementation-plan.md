@@ -54,27 +54,6 @@ schema, or authorization behavior. The frontend lane should follow closely
 enough that owner-facing usability is validated against the real API contract,
 not against placeholders.
 
-## Execution Story Alignment
-
-The phase-level plan in this document is implemented in detail by the July 2026
-story set under [stories/2026/07/README.md](./stories/2026/07/README.md).
-
-That story set currently sequences work as:
-
-1. solution topology alignment
-2. API v1 and auth contract baseline
-3. identity and persistence foundation
-4. shared contracts and agent core
-5. heartbeat ingestion and runtime sessions
-6. owner administrative, query, and portal MVP work on the shared API surface
-7. Windows service host
-8. Linux daemon host
-9. operations, observability, and deployment hardening
-10. power-meter domain and API-key authentication
-11. Shelly polling and power ingestion
-12. location, association, and portal power workflows
-13. reporting and extended-ingestion readiness
-
 ## Phase 0: Architecture Baseline
 
 ### Phase 0 Outcome
@@ -357,26 +336,6 @@ summarized in [delivery-backlog.md](./delivery-backlog.md):
   (`EPIC-12`, `EPIC-13`).
 9. Complete operational release readiness (`EPIC-14`).
 10. Add approved reporting and alternate-ingestion capabilities (`EPIC-15`).
-
-### Story-Level Delivery Sequence
-
-The [July 2026 story set](./stories/2026/07/README.md) groups the task graph
-into reviewable backend, frontend, agent, and operations slices:
-
-1. Align the current solution topology to the documented target architecture.
-2. Freeze the API, authentication, and portal-integration contract.
-3. Build the identity and persistence foundation.
-4. Build shared contracts and the shared agent runtime.
-5. Deliver heartbeat ingestion and runtime-session reconstruction.
-6. Deliver the first owner administrative, machine-read, and portal MVP flows
-  on the shared API surface.
-7. Add the Windows service host.
-8. Add the Linux daemon host.
-9. Harden operations, observability, and deployment.
-10. Add independent power-meter registration and API-key authentication.
-11. Add Shelly polling and normalized power ingestion.
-12. Add location, association, and portal power workflows.
-13. Add reporting and extended-ingestion readiness work.
 
 ## Major Risks
 

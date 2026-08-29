@@ -129,8 +129,9 @@ The first release should be delivered in paired backend and frontend slices.
   authorization, or host-runtime behavior is required.
 - Frontend work should follow closely behind each backend slice so owner-facing
   workflows are validated against the real API and not against temporary mocks.
-- Detailed execution order lives in [implementation-plan.md](./implementation-plan.md)
-  and [stories/2026/07/README.md](./stories/2026/07/README.md).
+- Phase intent lives in [implementation-plan.md](./implementation-plan.md), and
+  detailed execution order lives in the
+  [task dependency tree](./backlog/dependency-tree.md).
 
 ## Decisions
 

@@ -48,7 +48,7 @@ Implementation should be reasoned about through two coupled delivery tracks.
 
 These tracks converge on the versioned `/api/v1` surface and should be
 sequenced according to [implementation-plan.md](./implementation-plan.md) and
-the execution stories under [stories/2026/07/README.md](./stories/2026/07/README.md).
+the canonical [task dependency tree](./backlog/dependency-tree.md).
 
 ## Proposed Solution Shape
 

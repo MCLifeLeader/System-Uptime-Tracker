@@ -45,6 +45,7 @@ flowchart TD
   TASK_0205 --> TASK_0209
   TASK_0206 --> TASK_0207
   TASK_0206 --> TASK_0209
+  TASK_0207 --> TASK_0209
   TASK_0208 --> TASK_0209
   UPSTREAM --> TASK_0201
   UPSTREAM --> TASK_0202
@@ -69,7 +70,7 @@ task file to follow every concrete predecessor link.
 | [TASK-0206](../tasks/TASK-0206.md) | Define power-meter registration, power reading, location, monitored-device, and effective-dated association contracts | [TASK-0007](../tasks/TASK-0007.md), [TASK-0102](../tasks/TASK-0102.md) | Not started |
 | [TASK-0207](../tasks/TASK-0207.md) | Define idempotency keys: `AgentId + SequenceNumber` for heartbeats and meter identity plus `MessageId` for readings | [TASK-0202](../tasks/TASK-0202.md), [TASK-0203](../tasks/TASK-0203.md), [TASK-0206](../tasks/TASK-0206.md) | Not started |
 | [TASK-0208](../tasks/TASK-0208.md) | Standardize validation errors on Problem Details, correlation headers, UTC timestamp format, numeric units, and unsupported payload-version responses | [TASK-0201](../tasks/TASK-0201.md) | Not started |
-| [TASK-0209](../tasks/TASK-0209.md) | Generate or maintain the API OpenAPI document and add a compatibility test for the accepted v1 surface | [TASK-0202](../tasks/TASK-0202.md), [TASK-0203](../tasks/TASK-0203.md), [TASK-0204](../tasks/TASK-0204.md), [TASK-0205](../tasks/TASK-0205.md), [TASK-0206](../tasks/TASK-0206.md), [TASK-0208](../tasks/TASK-0208.md) | Not started |
+| [TASK-0209](../tasks/TASK-0209.md) | Generate or maintain the API OpenAPI document, executable HTTP examples, and portal-consumable typed or Zod validators for the accepted v1 surface | [TASK-0202](../tasks/TASK-0202.md), [TASK-0203](../tasks/TASK-0203.md), [TASK-0204](../tasks/TASK-0204.md), [TASK-0205](../tasks/TASK-0205.md), [TASK-0206](../tasks/TASK-0206.md), [TASK-0207](../tasks/TASK-0207.md), [TASK-0208](../tasks/TASK-0208.md) | Not started |
 
 ## Execution Guidance
 

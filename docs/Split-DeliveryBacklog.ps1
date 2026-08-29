@@ -374,7 +374,6 @@ foreach ($epic in $epics.Values) {
             "- [$dependencyId](./$dependencyId.md): $($epics[$dependencyId].Title)"
         }) -join "`n"
     }
-
     $epicContent = @"
 ---
 id: $($epic.Id)

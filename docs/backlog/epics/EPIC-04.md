@@ -37,8 +37,10 @@ flowchart TD
   TASK_0407[TASK-0407]
   TASK_0408[TASK-0408]
   TASK_0409[TASK-0409]
+  TASK_0410[TASK-0410]
   TASK_0401 --> TASK_0402
   TASK_0401 --> TASK_0408
+  TASK_0401 --> TASK_0410
   TASK_0402 --> TASK_0403
   TASK_0402 --> TASK_0404
   TASK_0402 --> TASK_0405
@@ -68,6 +70,7 @@ task file to follow every concrete predecessor link.
 | [TASK-0407](../tasks/TASK-0407.md) | Apply lockout and partitioned rate limits to password, token, refresh, and Basic Auth entry points without blocking health probes | [TASK-0404](../tasks/TASK-0404.md), [TASK-0405](../tasks/TASK-0405.md) | Not started |
 | [TASK-0408](../tasks/TASK-0408.md) | Require authentication on every non-health route and explicit owner/device policies by route group | [TASK-0401](../tasks/TASK-0401.md), [TASK-0406](../tasks/TASK-0406.md) | Not started |
 | [TASK-0409](../tasks/TASK-0409.md) | Audit logs for account creation, disablement, key issue/rotation/revocation, failed authentication, and denied authorization using identifiers rather than secrets | [TASK-0403](../tasks/TASK-0403.md), [TASK-0408](../tasks/TASK-0408.md) | Not started |
+| [TASK-0410](../tasks/TASK-0410.md) | Implement a one-time first-owner bootstrap path using deployment-supplied secret material, explicit startup validation, and automatic closure after an owner exists | [TASK-0301](../tasks/TASK-0301.md), [TASK-0401](../tasks/TASK-0401.md) | Not started |
 
 ## Execution Guidance
 

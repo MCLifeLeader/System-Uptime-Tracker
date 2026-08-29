@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document is the topological execution order for all 136 tasks.
+This document is the topological execution order for all 137 tasks.
 It complements the program-level epic graph in
 [delivery-backlog.md](../delivery-backlog.md) and the local task graphs in each
 [epic file](./epics/).
@@ -24,7 +24,7 @@ It complements the program-level epic graph in
 | Measure | Value |
 |---|---:|
 | Epics | 16 |
-| Tasks | 136 |
+| Tasks | 137 |
 | Execution waves | 26 |
 
 ## Wave 1
@@ -95,7 +95,6 @@ in parallel when staffing and environments allow.
 | [TASK-0106](./tasks/TASK-0106.md) | [EPIC-01](./epics/EPIC-01.md) | Configure CI jobs to run independent .NET, web, contract, migration, and packaging validations with dependency caching |
 | [TASK-0108](./tasks/TASK-0108.md) | [EPIC-01](./epics/EPIC-01.md) | Define test ownership: unit for pure rules, integration for SQL/API boundaries, functional for workflows, and packaging tests for installed services |
 | [TASK-0207](./tasks/TASK-0207.md) | [EPIC-02](./epics/EPIC-02.md) | Define idempotency keys: `AgentId + SequenceNumber` for heartbeats and meter identity plus `MessageId` for readings |
-| [TASK-0209](./tasks/TASK-0209.md) | [EPIC-02](./epics/EPIC-02.md) | Generate or maintain the API OpenAPI document and add a compatibility test for the accepted v1 surface |
 | [TASK-0301](./tasks/TASK-0301.md) | [EPIC-03](./epics/EPIC-03.md) | Define the telemetry `DbContext` ownership and migration strategy alongside the existing Identity context |
 | [TASK-0401](./tasks/TASK-0401.md) | [EPIC-04](./epics/EPIC-04.md) | Map existing `Admin`, `Manager`, `Contributor`, and `Read` roles to the decided `Owner` and telemetry-only device policies |
 | [TASK-0701](./tasks/TASK-0701.md) | [EPIC-07](./epics/EPIC-07.md) | Create `SystemUptimeTracker.Agent.Core` and its unit-test project with no Windows Service or systemd hosting dependency |
@@ -108,9 +107,11 @@ in parallel when staffing and environments allow.
 
 | Task | Epic | Objective |
 |---|---|---|
+| [TASK-0209](./tasks/TASK-0209.md) | [EPIC-02](./epics/EPIC-02.md) | Generate or maintain the API OpenAPI document, executable HTTP examples, and portal-consumable typed or Zod validators for the accepted v1 surface |
 | [TASK-0302](./tasks/TASK-0302.md) | [EPIC-03](./epics/EPIC-03.md) | Implement `Machine`, `Heartbeat`, `StorageTelemetry`, and `RuntimeSession` entities with audit fields and domain-model nullability |
 | [TASK-0402](./tasks/TASK-0402.md) | [EPIC-04](./epics/EPIC-04.md) | Implement `DeviceAccount` as a domain companion to `ApplicationUser`, including owner, allowed methods, API-key metadata, active state, and audit fields |
-| [TASK-0702](./tasks/TASK-0702.md) | [EPIC-07](./epics/EPIC-07.md) | Implement atomic first-run `AgentId` creation and load with corrupt-file handling and an OS-supplied durable-state path |
+| [TASK-0410](./tasks/TASK-0410.md) | [EPIC-04](./epics/EPIC-04.md) | Implement a one-time first-owner bootstrap path using deployment-supplied secret material, explicit startup validation, and automatic closure after an owner exists |
+| [TASK-0702](./tasks/TASK-0702.md) | [EPIC-07](./epics/EPIC-07.md) | Define the durable local identity-state boundary and implement atomic first-run `AgentId` creation and load with corrupt-file handling and an OS-supplied durable-state path |
 | [TASK-0703](./tasks/TASK-0703.md) | [EPIC-07](./epics/EPIC-07.md) | Define platform telemetry provider interfaces and normalized snapshots for OS, architecture, boot identity/time, CPU, memory, and storage |
 | [TASK-0801](./tasks/TASK-0801.md) | [EPIC-08](./epics/EPIC-08.md) | Define a durable queue interface and record envelope containing original event time, sequence/idempotency key, payload version, attempt count, and next attempt time |
 | [TASK-1201](./tasks/TASK-1201.md) | [EPIC-12](./epics/EPIC-12.md) | Implement `PowerMeter` and `PowerReading` entities, audit fields, connection type, status, and secret reference without storing polling credentials |
@@ -145,9 +146,9 @@ in parallel when staffing and environments allow.
 | [TASK-0306](./tasks/TASK-0306.md) | [EPIC-03](./epics/EPIC-03.md) | Create and review the initial telemetry migration and SQL script for least-privilege deployment |
 | [TASK-0406](./tasks/TASK-0406.md) | [EPIC-04](./epics/EPIC-04.md) | Build device claims from server-side account and machine authorization data |
 | [TASK-0407](./tasks/TASK-0407.md) | [EPIC-04](./epics/EPIC-04.md) | Apply lockout and partitioned rate limits to password, token, refresh, and Basic Auth entry points without blocking health probes |
-| [TASK-0706](./tasks/TASK-0706.md) | [EPIC-07](./epics/EPIC-07.md) | Implement bootstrap login, protected refresh-token storage, proactive access-token refresh, and disabled/revoked response handling |
+| [TASK-0706](./tasks/TASK-0706.md) | [EPIC-07](./epics/EPIC-07.md) | Implement bootstrap login, durable protected token and refresh-metadata storage, proactive access-token refresh, and disabled/revoked response handling |
 | [TASK-0803](./tasks/TASK-0803.md) | [EPIC-08](./epics/EPIC-08.md) | Enforce age and size caps with a deterministic oldest-first eviction policy and explicit data-loss metrics |
-| [TASK-1101](./tasks/TASK-1101.md) | [EPIC-11](./epics/EPIC-11.md) | Adapt existing Next.js authentication to the owner API flow |
+| [TASK-1101](./tasks/TASK-1101.md) | [EPIC-11](./epics/EPIC-11.md) | Adapt existing Next.js authentication to the owner API flow and establish typed service modules with runtime validation from the accepted OpenAPI contract |
 | [TASK-1203](./tasks/TASK-1203.md) | [EPIC-12](./epics/EPIC-12.md) | Create and validate the power-foundation migration against empty and existing telemetry databases |
 
 ## Wave 9
@@ -193,7 +194,7 @@ in parallel when staffing and environments allow.
 | [TASK-0503](./tasks/TASK-0503.md) | [EPIC-05](./epics/EPIC-05.md) | Make heartbeat processing atomic and idempotent under sequential and concurrent duplicate delivery |
 | [TASK-0504](./tasks/TASK-0504.md) | [EPIC-05](./epics/EPIC-05.md) | Normalize OS, architecture, machine name, agent version, CPU, memory, and storage values without silently coercing invalid data |
 | [TASK-0505](./tasks/TASK-0505.md) | [EPIC-05](./epics/EPIC-05.md) | Update machine `FirstSeenAtUtc`, `LastSeenAtUtc`, metadata, and registration state using server-authoritative rules |
-| [TASK-0506](./tasks/TASK-0506.md) | [EPIC-05](./epics/EPIC-05.md) | Attach or generate a correlation identifier and emit structured ingestion success/failure metrics without machine secrets or raw credentials |
+| [TASK-0506](./tasks/TASK-0506.md) | [EPIC-05](./epics/EPIC-05.md) | Attach or generate a correlation identifier and emit structured ingestion logs, success/failure metrics, and health diagnostics without machine secrets or raw credentials |
 | [TASK-0708](./tasks/TASK-0708.md) | [EPIC-07](./epics/EPIC-07.md) | Implement the typed HTTPS publishing client with bounded timeouts, contract version header, correlation ID, and response classification |
 | [TASK-1206](./tasks/TASK-1206.md) | [EPIC-12](./epics/EPIC-12.md) | Preserve optional raw vendor payload only under an explicit size, redaction, and retention policy |
 | [TASK-1207](./tasks/TASK-1207.md) | [EPIC-12](./epics/EPIC-12.md) | Add owner read endpoints for current meter state and paginated historical readings with deterministic time ordering |

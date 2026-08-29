@@ -60,7 +60,7 @@ task file to follow every concrete predecessor link.
 | [TASK-0503](../tasks/TASK-0503.md) | Make heartbeat processing atomic and idempotent under sequential and concurrent duplicate delivery | [TASK-0207](../tasks/TASK-0207.md), [TASK-0502](../tasks/TASK-0502.md) | Not started |
 | [TASK-0504](../tasks/TASK-0504.md) | Normalize OS, architecture, machine name, agent version, CPU, memory, and storage values without silently coercing invalid data | [TASK-0502](../tasks/TASK-0502.md) | Not started |
 | [TASK-0505](../tasks/TASK-0505.md) | Update machine `FirstSeenAtUtc`, `LastSeenAtUtc`, metadata, and registration state using server-authoritative rules | [TASK-0502](../tasks/TASK-0502.md) | Not started |
-| [TASK-0506](../tasks/TASK-0506.md) | Attach or generate a correlation identifier and emit structured ingestion success/failure metrics without machine secrets or raw credentials | [TASK-0502](../tasks/TASK-0502.md) | Not started |
+| [TASK-0506](../tasks/TASK-0506.md) | Attach or generate a correlation identifier and emit structured ingestion logs, success/failure metrics, and health diagnostics without machine secrets or raw credentials | [TASK-0502](../tasks/TASK-0502.md) | Not started |
 | [TASK-0507](../tasks/TASK-0507.md) | Add SQL Server integration tests for registration through heartbeat persistence, including retry and out-of-order delivery | [TASK-0503](../tasks/TASK-0503.md), [TASK-0504](../tasks/TASK-0504.md), [TASK-0505](../tasks/TASK-0505.md) | Not started |
 | [TASK-0508](../tasks/TASK-0508.md) | Add an end-to-end smoke client that registers a machine, obtains authorization, posts a heartbeat, and reads it as an owner | [TASK-0507](../tasks/TASK-0507.md) | Not started |
 
