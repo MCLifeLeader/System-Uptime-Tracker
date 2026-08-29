@@ -2,9 +2,14 @@
 
 ## Purpose
 
-This document is the executable delivery backlog for System Uptime Tracker. It
-breaks the product scope into epics and atomic tasks, records the dependency
-between each item, and defines the evidence required to call work complete.
+This document is the program-level delivery overview for System Uptime Tracker.
+It summarizes the product scope as epics, records the program dependency graph,
+and defines release gates and cross-epic completion rules.
+
+The canonical task-level execution files are under
+[backlog](./backlog/README.md). Every epic and task has a separate document,
+and [the task dependency tree](./backlog/dependency-tree.md) provides the
+topological execution waves across the complete backlog.
 
 The higher-level release intent remains in
 [implementation-plan.md](./implementation-plan.md). Product boundaries,
@@ -24,8 +29,8 @@ update the affected task and dependency IDs here in the same pull request.
   class exists. Run the acceptance check and record the result first.
 - Keep task IDs stable. Add a new ID instead of renumbering completed work.
 - Record status as `Not started`, `In progress`, `Blocked`, or `Done` in the
-  tracking system. This document intentionally initializes all work as
-  `Not started` pending an implementation audit.
+  corresponding task file. The split backlog intentionally initializes all
+  work as `Not started` pending an implementation audit.
 
 ## Delivery Baseline
 
@@ -114,7 +119,12 @@ The following work can proceed in parallel after its predecessors are met:
 
 ## Epic Summary
 
-| Epic | Outcome | Depends on | Release gate |
+Epic edges are completion dependencies: every listed predecessor must be
+complete before the dependent epic can be declared complete. Task-file
+`depends_on` metadata controls when individual tasks may start and enables the
+parallel execution waves in the split backlog.
+
+| Epic | Outcome | Completion depends on | Release gate |
 |---|---|---|---|
 | EPIC-00 | Decisions and measurable acceptance baseline | None | Gate 0 |
 | EPIC-01 | Buildable solution with explicit project ownership | EPIC-00 | Gate 0 |

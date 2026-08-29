@@ -6,3 +6,4 @@
 0.0.4 - Added cross-platform Docker image pull parity and improved Docker setup/teardown resilience
 0.0.5 - Captured the initial System Uptime Tracker design conversation in docs/inital-spec.md and rewrote README.md/CONTRIBUTING.md around the project's actual direction instead of the generic template description
 0.0.6 - Updated the specification and structured docs with the FamilyTools-derived Windows Service installer contract, deployment identifiers, packaging, upgrade, rollback, security, and lifecycle-test criteria
+0.0.7 - Added a dependency-ordered delivery backlog with separate files for 16 epics and 136 implementation tasks

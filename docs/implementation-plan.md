@@ -7,10 +7,11 @@ Deliver the first usable version in staged increments, starting with computer up
 ## Execution Backlog
 
 The phase descriptions in this document define release intent. The canonical,
-task-level execution order is maintained in
-[delivery-backlog.md](./delivery-backlog.md), which assigns stable epic and task
-IDs, explicit predecessors, acceptance evidence, parallel work lanes, and
-release gates.
+task-level execution order is maintained in the
+[split delivery backlog](./backlog/README.md), which assigns stable epic and
+task IDs, explicit predecessors, acceptance evidence, parallel work lanes, and
+release gates. The [execution tree](./backlog/dependency-tree.md) lists every
+task in topological scheduling waves.
 
 When sequencing work, use the dependency tree in that backlog rather than the
 phase number alone. A later-phase task may begin early when all of its declared
@@ -209,8 +210,9 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 
 ## Recommended Implementation Sequence
 
-The executable sequence is the dependency tree in
-[delivery-backlog.md](./delivery-backlog.md). Its critical path is:
+The executable sequence is the
+[task dependency tree](./backlog/dependency-tree.md). Its critical path is
+summarized in [delivery-backlog.md](./delivery-backlog.md):
 
 1. Close product decisions and define release evidence (`EPIC-00`).
 2. Align the solution and freeze versioned contracts (`EPIC-01`, `EPIC-02`).
