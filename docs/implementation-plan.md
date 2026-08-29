@@ -4,6 +4,19 @@
 
 Deliver the first usable version in staged increments, starting with computer uptime monitoring and leaving room for optional Shelly-based power telemetry without redesigning the core architecture.
 
+## Execution Backlog
+
+The phase descriptions in this document define release intent. The canonical,
+task-level execution order is maintained in
+[delivery-backlog.md](./delivery-backlog.md), which assigns stable epic and task
+IDs, explicit predecessors, acceptance evidence, parallel work lanes, and
+release gates.
+
+When sequencing work, use the dependency tree in that backlog rather than the
+phase number alone. A later-phase task may begin early when all of its declared
+dependencies are complete, while no task may begin merely because its phase is
+listed next.
+
 ## Delivery Strategy
 
 Use phased implementation so the system becomes useful early:
@@ -196,14 +209,22 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 
 ## Recommended Implementation Sequence
 
-1. Create the solution skeleton and shared contracts.
-2. Implement machine registration and heartbeat ingestion end to end.
-3. Implement runtime-session calculation with tests.
-4. Add retry queue and resilient agent publishing.
-5. Add Windows and Ubuntu service-hosting specifics.
-6. Add independent power-meter registration and storage.
-7. Add Shelly provider integration and association APIs.
-8. Add location and richer inventory support.
+The executable sequence is the dependency tree in
+[delivery-backlog.md](./delivery-backlog.md). Its critical path is:
+
+1. Close product decisions and define release evidence (`EPIC-00`).
+2. Align the solution and freeze versioned contracts (`EPIC-01`, `EPIC-02`).
+3. Implement persistence and least-privilege identity in parallel (`EPIC-03`,
+  `EPIC-04`).
+4. Complete machine registration and heartbeat ingestion (`EPIC-05`).
+5. Build runtime sessions, the agent core, and the owner portal on the stable
+  heartbeat path (`EPIC-06`, `EPIC-07`, `EPIC-11`).
+6. Add durable retry and offline recovery (`EPIC-08`).
+7. Package Windows and Ubuntu agents in parallel (`EPIC-09`, `EPIC-10`).
+8. Add independent power persistence, then Shelly collection and associations
+  (`EPIC-12`, `EPIC-13`).
+9. Complete operational release readiness (`EPIC-14`).
+10. Add approved reporting and alternate-ingestion capabilities (`EPIC-15`).
 
 ## Major Risks
 

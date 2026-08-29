@@ -10,8 +10,9 @@ The current source material started as a design conversation captured in [inital
 2. [architecture-overview.md](./architecture-overview.md)
 3. [domain-model.md](./domain-model.md)
 4. [implementation-plan.md](./implementation-plan.md)
-5. [windows-service-reference.md](./windows-service-reference.md)
-6. [inital-spec.md](./inital-spec.md)
+5. [delivery-backlog.md](./delivery-backlog.md)
+6. [windows-service-reference.md](./windows-service-reference.md)
+7. [inital-spec.md](./inital-spec.md)
 
 ## Document Purpose
 
@@ -19,6 +20,8 @@ The current source material started as a design conversation captured in [inital
 - [architecture-overview.md](./architecture-overview.md): Proposed system shape, runtime flows, deployment model, and cross-cutting concerns.
 - [domain-model.md](./domain-model.md): Core entities, relationships, identity rules, and data lifecycle guidance.
 - [implementation-plan.md](./implementation-plan.md): Phased execution plan, workstreams, deliverables, risks, and open questions.
+- [delivery-backlog.md](./delivery-backlog.md): Detailed epics, atomic tasks,
+	dependencies, acceptance evidence, parallel work lanes, and release gates.
 - [windows-service-reference.md](./windows-service-reference.md): Transferable Windows Service hosting, packaging, installer, and upgrade patterns from the local FamilyTools reference implementation.
 - [inital-spec.md](./inital-spec.md): Original design conversation retained for
 	traceability, with later implementation amendments where the project adopted
