@@ -334,24 +334,23 @@ Additional protections:
 
 ---
 
-# Cross-Platform Service Hosting
+# Platform Service Hosting
 
-## Agent `Program.cs`
+## Windows Service `Program.cs`
 
-The modern hosting model can detect and integrate with the operating-system service manager:
+The Windows host integrates with Windows Service Control Manager and delegates
+worker behavior to the shared agent core:
 
 ```csharp
-using ComputerTelemetry.Agent;
+using SystemUptimeTracker.Agent.Core;
 using Microsoft.Extensions.Hosting;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddWindowsService(options =>
 {
-    options.ServiceName = "Computer Telemetry Agent";
+  options.ServiceName = "SystemUptimeTrackerAgent";
 });
-
-builder.Services.AddSystemd();
 
 builder.Services.AddHttpClient<TelemetryApiClient>();
 builder.Services.AddSingleton<MachineIdentityProvider>();
@@ -363,13 +362,18 @@ IHost host = builder.Build();
 await host.RunAsync();
 ```
 
-Required packages will likely include:
+The Windows host requires:
 
 ```xml
 <PackageReference
     Include="Microsoft.Extensions.Hosting.WindowsServices"
     Version="10.0.*" />
+```
 
+The separate Linux host registers the same shared agent services and adds
+systemd integration through:
+
+```xml
 <PackageReference
     Include="Microsoft.Extensions.Hosting.Systemd"
     Version="10.0.*" />
@@ -381,44 +385,97 @@ The business logic remains identical. Windows Service Control Manager and Linux 
 
 # Windows Publication and Installation
 
-Publish as a self-contained, single-file executable:
+The local `C:\Code\Personal\FamilyTools` repository provides the reference
+deployment shape. Its
+`src/ComputerTaskHandler/Task.Handler.Client/Install_Service.ps1` script ships
+beside the service executable and performs a create-or-update deployment: it
+uses the script directory as the artifact source, creates the target directory,
+stops an existing service, replaces application files, creates the service with
+automatic startup when it is absent, and starts it.
+
+System Uptime Tracker should preserve that artifact-contained and rerunnable
+workflow without copying the reference script unchanged. The initial Windows
+contract is:
+
+| Setting | Default |
+|---|---|
+| Service name | `SystemUptimeTrackerAgent` |
+| Display name | `System Uptime Tracker Agent` |
+| Executable | `SystemUptimeTracker.WindowsService.exe` |
+| Application root | `C:\Program Files\SystemUptimeTracker\Agent` |
+| Release directories | `C:\Program Files\SystemUptimeTracker\Agent\releases\<version>` |
+| Durable data root | `C:\ProgramData\SystemUptimeTracker\Agent` |
+| Default identity | `NT AUTHORITY\LocalService` unless a documented telemetry provider requires additional rights |
+| Startup | Automatic, with restart-on-failure recovery actions |
+
+Publish the dedicated Windows host as a self-contained, single-file
+executable:
 
 ```powershell
-dotnet publish src/ComputerTelemetry.Agent `
+dotnet publish src/SystemUptimeTracker/SystemUptimeTracker.WindowsService/SystemUptimeTracker.WindowsService.csproj `
   --configuration Release `
   --runtime win-x64 `
   --self-contained true `
   -p:PublishSingleFile=true `
   -p:PublishTrimmed=false `
-  --output artifacts/windows-x64
+  --output artifacts/windows-service/win-x64
 ```
 
 Single-file publishing is supported through runtime-specific `dotnet publish` operations. ([Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/core/deploying/single-file/overview?utm_source=chatgpt.com))
 
-Register the service:
+The published artifact must include:
+
+- `SystemUptimeTracker.WindowsService.exe`
+- `Install-SystemUptimeTrackerWindowsService.ps1`
+- `Uninstall-SystemUptimeTrackerWindowsService.ps1`
+- A non-secret configuration template
+- An operator README containing install, upgrade, rollback, diagnostics, and
+  uninstall procedures
+
+The install script must be an advanced PowerShell script with named, validated
+parameters, `SupportsShouldProcess`, terminating error handling, and an explicit
+elevation check. Running the same command for a new install or an upgrade must
+be safe. A typical invocation is:
 
 ```powershell
-New-Service `
-  -Name "ComputerTelemetryAgent" `
-  -BinaryPathName "C:\Program Files\ComputerTelemetry\ComputerTelemetry.Agent.exe" `
-  -DisplayName "Computer Telemetry Agent" `
-  -Description "Reports machine uptime and telemetry." `
-  -StartupType Automatic
+pwsh ./Install-SystemUptimeTrackerWindowsService.ps1 `
+  -PackageVersion "1.0.0"
 ```
 
-Start it:
+The installer must:
 
-```powershell
-Start-Service ComputerTelemetryAgent
-```
+1. Validate elevation, parameters, the source executable, and non-overlapping
+  source, application, and durable-data paths before changing the machine.
+2. Detect the service with `Get-Service`; stop it only when present and wait for
+  `Stopped` with a bounded timeout rather than a fixed sleep.
+3. Stage and validate the new files in a versioned release directory, unblock
+  only those packaged files, and leave `C:\ProgramData\SystemUptimeTracker`
+  untouched during upgrades.
+4. Create the service when absent or update its binary path when present. The
+  service name used by Windows Service Control Manager must match the name
+  configured by `AddWindowsService` in the host.
+5. Configure the display name, description, automatic startup, and restart
+  recovery actions. Every native command must have its exit code checked.
+6. Configure and verify the selected service identity, deny unnecessary
+  interactive access, and grant only the application-read, data-write,
+  event-log, and outbound-network permissions the agent requires.
+7. Start the service, wait for `Running` with a bounded timeout, and verify an
+  observable startup signal before declaring success.
+8. If startup validation fails, restore the previous binary path and release,
+  restart the previous version, and return a terminating error.
+9. Avoid accepting credentials on the command line or writing configuration
+  objects, tokens, passwords, or API keys to installer output. Bootstrap
+  credentials through a separate ACL-protected provisioning step.
 
-Configure automatic recovery:
+Uninstall must stop and remove the service registration and application
+releases. Durable identity, queue, and diagnostic data under `ProgramData` must
+be retained by default and removed only through an explicit purge switch.
 
-```powershell
-sc.exe failure ComputerTelemetryAgent `
-  reset= 86400 `
-  actions= restart/5000/restart/15000/restart/60000
-```
+The FamilyTools script's positional `$args`, fixed sleeps, deletion of the live
+directory before validation, unchecked `sc.exe` result, and post-deployment
+identity reminder are findings to improve, not patterns to reproduce. See
+[windows-service-reference.md](./windows-service-reference.md) for the detailed
+comparison and packaging test expectations.
 
 ---
 
@@ -1257,6 +1314,11 @@ Includes:
 Includes:
 
 - Windows Service registration support
+- Artifact-contained PowerShell install and uninstall entry points
+- Idempotent first install and versioned upgrades
+- Automatic startup, restart-on-failure recovery, and startup validation
+- Failed-upgrade rollback with durable state retained under `ProgramData`
+- Explicit least-privilege service identity and filesystem ACL configuration
 - Windows telemetry
 - Local Shelly polling
 - Local retry queue

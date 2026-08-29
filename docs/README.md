@@ -10,7 +10,8 @@ The current source material started as a design conversation captured in [inital
 2. [architecture-overview.md](./architecture-overview.md)
 3. [domain-model.md](./domain-model.md)
 4. [implementation-plan.md](./implementation-plan.md)
-5. [inital-spec.md](./inital-spec.md)
+5. [windows-service-reference.md](./windows-service-reference.md)
+6. [inital-spec.md](./inital-spec.md)
 
 ## Document Purpose
 
@@ -18,11 +19,15 @@ The current source material started as a design conversation captured in [inital
 - [architecture-overview.md](./architecture-overview.md): Proposed system shape, runtime flows, deployment model, and cross-cutting concerns.
 - [domain-model.md](./domain-model.md): Core entities, relationships, identity rules, and data lifecycle guidance.
 - [implementation-plan.md](./implementation-plan.md): Phased execution plan, workstreams, deliverables, risks, and open questions.
-- [inital-spec.md](./inital-spec.md): Raw source conversation retained for traceability.
+- [windows-service-reference.md](./windows-service-reference.md): Transferable Windows Service hosting, packaging, installer, and upgrade patterns from the local FamilyTools reference implementation.
+- [inital-spec.md](./inital-spec.md): Original design conversation retained for
+	traceability, with later implementation amendments where the project adopted
+	a concrete reference design.
 
 ## Usage Notes
 
-- Treat [inital-spec.md](./inital-spec.md) as source material, not as the day-to-day working plan.
+- Treat [inital-spec.md](./inital-spec.md) as source material and an amended
+	specification record, not as the day-to-day working plan.
 - Update the structured documents first when decisions change.
 - Add architectural decisions as amendments to the relevant document until a dedicated ADR process is introduced.
 - Naming has moved on since the original conversation: [inital-spec.md](./inital-spec.md) uses placeholder names like `ComputerTelemetry.sln` and `computer-telemetry.service`. The structured documents supersede that naming with `SystemUptimeTracker.*` for solution, namespace, and shared-library names (see [architecture-overview.md](./architecture-overview.md)). Do not copy the old `ComputerTelemetry`/`computer-telemetry` strings into implementation.

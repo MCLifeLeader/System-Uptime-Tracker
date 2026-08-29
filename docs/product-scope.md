@@ -56,7 +56,8 @@ The ingestion API is the most exposed part of the system and should be hardened 
 
 - ASP.NET Core ingestion API.
 - SQL Server persistence model.
-- Windows Service packaging and installation path.
+- Windows Service packaging with artifact-contained PowerShell install,
+  repeat-install, upgrade, rollback, and uninstall paths.
 - Ubuntu daemon packaging and systemd installation path.
 - Agent identity, heartbeat scheduling, retry queue, and telemetry publishing.
 - Machine telemetry including uptime context, OS metadata, CPU, memory, and storage.
@@ -92,6 +93,9 @@ The ingestion API is the most exposed part of the system and should be hardened 
 - A reporting machine can optionally be linked to a power meter as dedicated load, shared load, or collector only.
 - Runtime sessions can be derived from heartbeat data with reliable gap handling.
 - The design supports staged delivery, starting with computer telemetry and adding power telemetry later.
+- A Windows operator can install or upgrade the packaged agent by running the
+  included PowerShell installer, and a failed startup restores the previous
+  working release without deleting durable agent state.
 
 ## Assumptions
 
@@ -109,9 +113,27 @@ The ingestion API is the most exposed part of the system and should be hardened 
 - Cross-platform agent logic should be shared where possible.
 - Platform-specific behavior should be isolated to hosting, installation, and OS-specific telemetry collection.
 - Security controls should be strong enough for unattended service-to-API communication.
+- Windows installation requires elevation, but the running service uses an
+  explicit least-privilege identity. Credentials are provisioned separately
+  and must not be supplied as installer command-line arguments or logged.
 
 ## Decisions
 
+- **Windows installation model (decided):** The `win-x64` artifact includes
+  `Install-SystemUptimeTrackerWindowsService.ps1` and
+  `Uninstall-SystemUptimeTrackerWindowsService.ps1`. The install script uses
+  its own directory as the package source and safely handles first install and
+  upgrade. The default service name is `SystemUptimeTrackerAgent`, the
+  application root is `C:\Program Files\SystemUptimeTracker\Agent`, and durable
+  identity, retry, and diagnostic data is stored separately under
+  `C:\ProgramData\SystemUptimeTracker\Agent`. Upgrades stage a versioned
+  release, configure automatic startup and recovery, validate startup, and
+  roll back on failure. Uninstall retains durable data unless an explicit purge
+  is requested. This adapts the proven deployment shape in the local
+  `C:\Code\Personal\FamilyTools` repository while replacing its positional
+  arguments, fixed sleeps, destructive live-directory replacement, and
+  implicit identity handling. See
+  [windows-service-reference.md](./windows-service-reference.md).
 - **Authentication model (decided):** The API authenticates callers through ASP.NET Core Identity local user accounts — no external identity provider. There are two kinds of account:
   - **Owner account**: a human user who administers the deployment. An owner creates and removes device accounts, and decides whether devices share one account or each get their own.
   - **Device account**: the credential a reporting agent (or other telemetry-producing device) uses to call the ingestion API. Every device account is owned by exactly one owner account. An owner may create one device account per machine, or a single shared device account used by many machines — both are supported, and the choice is the owner's, not a fixed system default.

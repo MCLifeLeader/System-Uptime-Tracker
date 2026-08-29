@@ -64,7 +64,23 @@ Make the monitoring system operationally deployable across target environments.
 
 ### Phase 2 Work Items
 
-- Add Windows Service installation guidance and packaging.
+- Implement Windows Service hosting, publishing, and lifecycle behavior using
+  [windows-service-reference.md](./windows-service-reference.md) as the concrete
+  design baseline.
+- Publish a self-contained, single-file `win-x64` artifact containing the
+  executable, non-secret configuration template, operator README, and named
+  PowerShell install and uninstall entry points.
+- Implement idempotent first-install and upgrade behavior with validated named
+  parameters, elevation checks, bounded service-state waits, versioned release
+  staging, checked native-command results, startup validation, and rollback.
+- Configure the `SystemUptimeTrackerAgent` service for automatic startup,
+  restart-on-failure recovery, and the explicit least-privilege service
+  identity and ACL contract defined by the architecture.
+- Keep application releases under `Program Files` separate from durable
+  identity, retry, and diagnostic state under `ProgramData`; retain durable
+  state on uninstall unless an explicit purge is requested.
+- Add a disposable Windows packaging test covering install, repeat install,
+  upgrade, failed-upgrade rollback, start, stop, uninstall, and state retention.
 - Add systemd unit definition and installation guidance.
 - Add NodeJS portal build, packaging, and deployment guidance.
 - Define local configuration model for production deployment.
@@ -75,7 +91,9 @@ Make the monitoring system operationally deployable across target environments.
 
 ### Phase 2 Exit Criteria
 
-- The Windows agent is installable as a service.
+- The Windows agent artifact supports tested install, repeat install, upgrade,
+  failed-start rollback, uninstall, automatic startup, recovery configuration,
+  clean shutdown, and durable-state retention behavior.
 - The Ubuntu agent is installable as a systemd-managed daemon.
 - The NodeJS portal can be deployed and connected to the shared API.
 - API, portal, and agents expose enough health and logs for first-line troubleshooting.
@@ -161,7 +179,8 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 ## Deployment And Operations
 
 - Publishing profiles.
-- Service installation scripts or instructions.
+- Artifact-contained Windows install and uninstall scripts plus the operator
+  runbook defined in [windows-service-reference.md](./windows-service-reference.md).
 - Configuration handling.
 - Health checks and diagnostics.
 
@@ -171,7 +190,8 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 - `*.IntegrationTests` projects for heartbeat ingestion and power-meter association rules.
 - `*.FunctionalTests` projects for end-to-end API and agent workflow verification where needed.
 - Portal unit, integration, and functional tests for owner login, device-account management, and core data-view workflows.
-- Packaging smoke tests for Windows and Ubuntu deployment paths.
+- Packaging smoke tests for Windows and Ubuntu deployment paths, including the
+  complete Windows service lifecycle on a disposable Windows environment.
 - Thin Windows Service and Linux daemon host projects should default to shared-core coverage plus integration and packaging checks unless platform-specific logic grows large enough to justify dedicated test projects.
 
 ## Recommended Implementation Sequence

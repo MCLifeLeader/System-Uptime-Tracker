@@ -187,9 +187,25 @@ The NodeJS management portal and the reporting devices share the same ASP.NET Co
 
 ### Windows Agent
 
-- Publish as a Windows-targeted service executable.
-- Install through Windows Service registration.
-- Persist local state under a service-owned data directory.
+- Publish `SystemUptimeTracker.WindowsService.exe` as a self-contained,
+  single-file `win-x64` service executable.
+- Package `Install-SystemUptimeTrackerWindowsService.ps1` and
+  `Uninstall-SystemUptimeTrackerWindowsService.ps1` beside the executable.
+- Register the service as `SystemUptimeTrackerAgent`, displayed as
+  `System Uptime Tracker Agent`, with automatic startup and restart-on-failure
+  recovery.
+- Install versioned application releases below
+  `C:\Program Files\SystemUptimeTracker\Agent\releases` and persist identity,
+  retry state, and diagnostics separately below
+  `C:\ProgramData\SystemUptimeTracker\Agent`.
+- Default to `NT AUTHORITY\LocalService` unless a telemetry provider has a
+  documented need for additional rights. Grant only required filesystem,
+  event-log, and outbound-network access.
+- Use the hosting, artifact, and installer design in
+  [windows-service-reference.md](./windows-service-reference.md) as the concrete
+  implementation baseline. Adapt its proven service lifecycle and idempotent
+  registration shape while applying the security, rollback, and asynchronous
+  execution improvements identified there.
 
 ### Ubuntu Agent
 
@@ -210,7 +226,13 @@ The NodeJS management portal and the reporting devices share the same ASP.NET Co
 - Be hostable behind the same reverse proxy/domain family as the API, or on a separate origin with tightly scoped CORS.
 - Never require direct database connectivity.
 
-Concrete deployment identifiers (Windows service name, systemd unit name, install and data directories, config file name) still need to be defined under the `SystemUptimeTracker` naming established in this document. [inital-spec.md](./inital-spec.md) uses placeholder `ComputerTelemetry`/`computer-telemetry` names from before the project was renamed; do not carry those literal strings into implementation.
+The Windows deployment identifiers are defined above. The systemd unit name,
+Linux install and data directories, and final cross-platform configuration file
+contract still need to be defined under the `SystemUptimeTracker` naming
+established in this document. Other portions of
+[inital-spec.md](./inital-spec.md) still use placeholder
+`ComputerTelemetry`/`computer-telemetry` names from before the project was
+renamed; do not carry those literal strings into implementation.
 
 ## Cross-Cutting Concerns
 

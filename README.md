@@ -2,7 +2,7 @@
 
 A small, cross-platform .NET system for tracking computer uptime and telemetry, with optional power-usage monitoring through smart plugs. A lightweight background agent runs on Windows and Ubuntu Linux, reports heartbeats and system telemetry over HTTPS to a central ASP.NET Core API, and the API persists everything to SQL Server for uptime history and reporting.
 
-> **Status: design phase.** No application code has been written yet. The design work lives under [docs/](docs/): [docs/product-scope.md](docs/product-scope.md), [docs/architecture-overview.md](docs/architecture-overview.md), [docs/domain-model.md](docs/domain-model.md), and [docs/implementation-plan.md](docs/implementation-plan.md) are the structured, up-to-date references; [docs/inital-spec.md](docs/inital-spec.md) is the original raw design conversation those were distilled from. This README reflects that intended direction. The repository currently carries a general-purpose Azure/.NET developer-environment scaffold (dev container, local dependency containers, DevOps pipeline placeholders, Copilot/Codex instruction library) that implementation will build on top of.
+> **Status: design phase.** No application code has been written yet. The design work lives under [docs/](docs/): [docs/product-scope.md](docs/product-scope.md), [docs/architecture-overview.md](docs/architecture-overview.md), [docs/domain-model.md](docs/domain-model.md), and [docs/implementation-plan.md](docs/implementation-plan.md) are the structured, up-to-date references; [docs/inital-spec.md](docs/inital-spec.md) is the original design conversation plus later implementation amendments. This README reflects that intended direction. The repository currently carries a general-purpose Azure/.NET developer-environment scaffold (dev container, local dependency containers, DevOps pipeline placeholders, Copilot/Codex instruction library) that implementation will build on top of.
 
 ## What it does
 
@@ -42,6 +42,10 @@ Design notes preserve room to add an MQTT- or WebSocket-based ingestion path lat
 - ASP.NET Core Web API + Entity Framework Core for the ingestion service
 - SQL Server / Azure SQL Database for persistence
 - Self-contained, single-file `dotnet publish` for Windows Service and `systemd` daemon distribution
+- Artifact-contained PowerShell installation for Windows, with idempotent
+    upgrades, startup validation, rollback, and durable state outside the
+    replaceable application directory. See
+    [docs/windows-service-reference.md](docs/windows-service-reference.md).
 - ASP.NET Core Identity with local user accounts (Owner and Device accounts); devices authenticate with JWT bearer tokens (primary, with periodic rotation) or HTTP Basic Auth with a hashed API key (fallback for constrained devices like the Shelly plug); HTTPS-only. See [docs/architecture-overview.md](docs/architecture-overview.md#authentication-and-authorization).
 
 ## Data model highlights
@@ -61,7 +65,7 @@ The guiding principle: **measured power belongs to the meter**; location and dev
 ## Recommended MVP scope
 
 1. Cross-platform Worker Service agent
-2. Windows Service installation
+2. Windows Service artifact with tested install, upgrade, rollback, and uninstall
 3. Ubuntu `systemd` installation
 4. Persistent agent identifier
 5. HTTPS heartbeat submission
