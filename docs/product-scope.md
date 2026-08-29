@@ -63,6 +63,8 @@ The ingestion API is the most exposed part of the system and should be hardened 
 - Optional Shelly polling support through the agent.
 - Optional independent Shelly registration and future non-agent ingestion paths.
 - NodeJS web management portal for owner login, device-account administration, and interaction with collected machine and power data.
+- Owner-facing administrative and data-read API endpoints that the portal uses
+  for the same workflows.
 - Minimum location and monitored-device management needed to associate power meters to real-world equipment when Shelly support is introduced.
 - Documentation for design, planning, and implementation sequence.
 
@@ -109,6 +111,19 @@ The ingestion API is the most exposed part of the system and should be hardened 
 - Cross-platform agent logic should be shared where possible.
 - Platform-specific behavior should be isolated to hosting, installation, and OS-specific telemetry collection.
 - Security controls should be strong enough for unattended service-to-API communication.
+- Portal features must consume the shared API contract rather than introducing
+  direct database access or a second backend rule set.
+
+## Implementation Approach
+
+The first release should be delivered in paired backend and frontend slices.
+
+- Backend or platform work should lead when new schema, routes, authentication,
+  authorization, or host-runtime behavior is required.
+- Frontend work should follow closely behind each backend slice so owner-facing
+  workflows are validated against the real API and not against temporary mocks.
+- Detailed execution order lives in [implementation-plan.md](./implementation-plan.md)
+  and [stories/2026/07/README.md](./stories/2026/07/README.md).
 
 ## Decisions
 

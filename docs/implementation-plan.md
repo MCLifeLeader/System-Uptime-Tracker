@@ -12,6 +12,55 @@ Use phased implementation so the system becomes useful early:
 2. Add platform-specific service packaging and operational hardening.
 3. Add optional Shelly integration on top of the stable machine-monitoring baseline.
 
+## Delivery Lanes
+
+Implementation should be planned and reviewed through two primary delivery
+lanes that advance in sequence, but do not collapse into one another.
+
+### Backend And Platform Lane
+
+- ASP.NET Core API routes, authentication, authorization, and versioned
+  contracts.
+- Entity Framework Core persistence, migrations, and query boundaries.
+- Shared contracts, agent runtime, Windows and Linux hosts, and power-provider
+  integrations.
+- Observability, configuration validation, packaging, and deployment hardening.
+
+### Frontend And Portal Lane
+
+- Owner authentication and secure session handling in the NodeJS portal.
+- Typed API-integration services and passthrough or server-fetch rules.
+- Owner-facing workflows for device accounts, machines, power meters,
+  locations, and associations.
+- Portal-side error handling, trace correlation, localization, and functional
+  test coverage.
+
+The backend lane should lead whenever a frontend workflow depends on new API,
+schema, or authorization behavior. The frontend lane should follow closely
+enough that owner-facing usability is validated against the real API contract,
+not against placeholders.
+
+## Execution Story Alignment
+
+The phase-level plan in this document is implemented in detail by the July 2026
+story set under [stories/2026/07/README.md](./stories/2026/07/README.md).
+
+That story set currently sequences work as:
+
+1. solution topology alignment
+2. API v1 and auth contract baseline
+3. identity and persistence foundation
+4. shared contracts and agent core
+5. heartbeat ingestion and runtime sessions
+6. owner administrative, query, and portal MVP work on the shared API surface
+7. Windows service host
+8. Linux daemon host
+9. operations, observability, and deployment hardening
+10. power-meter domain and API-key authentication
+11. Shelly polling and power ingestion
+12. location, association, and portal power workflows
+13. reporting and extended-ingestion readiness
+
 ## Phase 0: Architecture Baseline
 
 ### Phase 0 Outcome
@@ -22,12 +71,17 @@ Create a stable decision baseline before project scaffolding expands.
 
 - Structured documentation set in [docs](./).
 - Agreed project scope, domain language, and data ownership rules.
-- Initial project skeleton decision for applications, shared libraries, and flat `src/`-level test projects named by test type.
+- Initial project skeleton decision for applications, shared libraries, backend
+  or frontend boundaries, and test projects named by test type.
+- Accepted API, authentication, and portal-integration contract baseline before
+  feature coding begins.
 
 ### Phase 0 Exit Criteria
 
 - Core terminology is stable enough to scaffold the solution.
 - Independent registration rules for machines and power meters are accepted.
+- The frontend portal and backend API share one explicit contract and one
+  agreed authentication model.
 
 ## Phase 1: Core Uptime Monitoring MVP
 
@@ -37,24 +91,53 @@ Support Windows and Ubuntu computer monitoring without any power-meter dependenc
 
 ### Phase 1 Work Items
 
+#### Phase 1 Backend And Shared-Platform Work Items
+
 - Scaffold API, Windows Service, Linux daemon, and shared libraries.
-- Scaffold the NodeJS management portal.
+- Implement ASP.NET Core Identity with local user accounts, the `Owner` role,
+  and the `DeviceAccount` entity (see
+  [architecture-overview.md](./architecture-overview.md#authentication-and-authorization)
+  and [domain-model.md](./domain-model.md)). Support both a shared device
+  account and dedicated per-device accounts, at the owner's discretion.
+- Implement a token endpoint issuing JWT access and refresh tokens for device
+  accounts, used by the Windows Service and Linux daemon agents; support
+  periodic access-token rotation via refresh rather than resending the original
+  credential.
+- Implement account lockout on repeated failed authentication attempts and rate
+  limiting on the token endpoint, as baseline brute-force protection for the
+  most exposed part of the system.
+- Persist machines, heartbeats, runtime sessions, and storage telemetry in SQL
+  Server.
 - Implement agent identity persistence.
-- Implement heartbeat contract and publishing client.
-- Implement ASP.NET Core Identity with local user accounts, the `Owner` role, and the `DeviceAccount` entity (see [architecture-overview.md](./architecture-overview.md#authentication-and-authorization) and [domain-model.md](./domain-model.md)). Support both a shared device account and dedicated per-device accounts, at the owner's discretion.
-- Implement a token endpoint issuing JWT access and refresh tokens for device accounts, used by the Windows Service and Linux daemon agents; support periodic access-token rotation via refresh rather than resending the original credential.
-- Implement owner-account login for the NodeJS portal against the same API, plus the minimum owner-facing API endpoints and portal views needed to create/manage device accounts and inspect registered machines.
-- Implement account lockout on repeated failed authentication attempts and rate limiting on the token endpoint, as baseline brute-force protection for the most exposed part of the system.
-- Persist machines, heartbeats, runtime sessions, and storage telemetry in SQL Server.
+- Implement heartbeat contract, publishing client, and retry-safe ingestion.
 - Implement heartbeat gap handling and runtime-session reconstruction.
+- Expose the minimum owner-facing administrative and machine-read endpoints the
+  portal needs to create or manage device accounts and inspect monitored
+  machines.
 - Add health checks and structured logging.
+
+#### Phase 1 Frontend Portal Work Items
+
+- Confirm the retained NodeJS web shell is the implementation surface for the
+  documented management portal, unless renamed during topology alignment.
+- Implement owner-account login for the portal against the same API used by
+  devices.
+- Implement secure session or token handling appropriate to the chosen portal
+  integration model.
+- Build the minimum owner-facing workflows needed to create or manage device
+  accounts and inspect registered machines.
+- Add trace-aware generic error handling, localization-ready strings, and the
+  first set of portal unit, integration, and functional tests.
 
 ### Phase 1 Exit Criteria
 
 - A Windows or Ubuntu machine can register and send heartbeats over HTTPS.
-- An owner can sign into the NodeJS portal and manage device accounts through the shared API.
+- An owner can sign into the NodeJS portal and manage device accounts through
+  the shared API.
 - The API stores heartbeat history and derives runtime sessions.
 - The agent can survive temporary API outages through retry behavior.
+- The portal's initial owner workflows are running against real backend
+  authorization and data, not mocked contracts.
 
 ## Phase 2: Service Packaging And Operational Hardening
 
@@ -64,14 +147,24 @@ Make the monitoring system operationally deployable across target environments.
 
 ### Phase 2 Work Items
 
+#### Phase 2 Backend, Host, And Operations Work Items
+
 - Add Windows Service installation guidance and packaging.
 - Add systemd unit definition and installation guidance.
-- Add NodeJS portal build, packaging, and deployment guidance.
 - Define local configuration model for production deployment.
-- Define portal-to-API configuration, origin strategy, and session/token handling model.
 - Finalize filesystem locations for state, logs, and retry queue storage.
 - Add deployment-time configuration validation.
+- Finalize health, logging, metrics, and trace correlation across API and
+  agents.
 - Add basic operational runbooks for start, stop, upgrade, and diagnostics.
+
+#### Phase 2 Frontend Portal Work Items
+
+- Add NodeJS portal build, packaging, and deployment guidance.
+- Define portal-to-API configuration, origin strategy, and session-token or
+  secure-cookie handling model.
+- Add portal deployment smoke tests and operator-facing diagnostics for auth,
+  proxy, and trace-correlation failures.
 
 ### Phase 2 Exit Criteria
 
@@ -79,6 +172,9 @@ Make the monitoring system operationally deployable across target environments.
 - The Ubuntu agent is installable as a systemd-managed daemon.
 - The NodeJS portal can be deployed and connected to the shared API.
 - API, portal, and agents expose enough health and logs for first-line troubleshooting.
+- Portal deployment behavior is documented strongly enough that session,
+  origin, and API-integration failures are diagnosable in production-like
+  environments.
 
 ## Phase 3: Independent Power-Meter Support
 
@@ -88,20 +184,36 @@ Add Shelly support without changing the machine-monitoring core contract.
 
 ### Phase 3 Work Items
 
-- Implement power-meter registration model, including secret-reference storage for device credentials (never the credential itself).
+#### Phase 3 Backend, Data, And Agent Work Items
+
+- Implement power-meter registration model, including secret-reference storage
+  for device credentials (never the credential itself).
 - Implement power-reading ingestion contract and storage.
 - Implement agent-side Shelly polling provider.
-- Implement HTTP Basic Auth with hashed API-key validation as a second authentication scheme for `DeviceAccount`s that cannot perform the JWT login/refresh flow, plus owner-facing endpoints to issue, view (once), and revoke a `DeviceAccount`'s API key.
-- Implement machine-to-meter and meter-to-device association endpoints, and the owner-facing device-account management endpoints (create/remove/reassign device accounts) these depend on.
+- Implement HTTP Basic Auth with hashed API-key validation as a second
+  authentication scheme for `DeviceAccount`s that cannot perform the JWT
+  login or refresh flow, plus owner-facing endpoints to issue, view once, and
+  revoke a `DeviceAccount`'s API key.
+- Implement machine-to-meter and meter-to-device association endpoints, and the
+  owner-facing device-account management endpoints these depend on.
 - Implement location model and effective-dated meter placement.
-- Extend the NodeJS portal with owner-facing screens for power-meter registration, association management, and collected power-data views.
 - Validate dedicated, shared, and collector-only relationship handling.
+
+#### Phase 3 Frontend Portal Work Items
+
+- Extend the NodeJS portal with owner-facing screens for power-meter
+  registration, API-key reveal or revoke workflows, association management, and
+  collected power-data views.
+- Add portal-side validations, trace-aware error handling, and functional tests
+  for the new power and association workflows.
 
 ### Phase 3 Exit Criteria
 
 - A Shelly meter can be added independently of any machine.
 - A machine can remain unassociated with any meter.
 - A reporting machine can optionally submit Shelly readings under an approved relationship.
+- Owners can manage the first useful power-telemetry workflows without direct
+  database access or raw API tooling.
 
 ## Phase 4: Extended Ingestion And Reporting Readiness
 
@@ -111,11 +223,21 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 
 ### Phase 4 Work Items
 
+#### Phase 4 Backend And Data Work Items
+
 - Evaluate MQTT or direct-ingestion Shelly path.
 - Add approval workflows for discovered machines and meters.
 - Add aggregate reporting queries or read models.
-- Add optional estimated power-allocation support (`PowerAllocationRule`; see [domain-model.md](./domain-model.md)).
+- Add optional estimated power-allocation support (`PowerAllocationRule`; see
+  [domain-model.md](./domain-model.md)).
 - Add alerting and operational dashboards if required.
+
+#### Phase 4 Frontend Portal Work Items
+
+- Add approval queues, reporting screens, and operator-facing summaries that
+  consume the new read models.
+- Add portal workflows only after the supporting backend read paths and review
+  semantics are stable enough to avoid rework.
 
 ### Phase 4 Exit Criteria
 
@@ -124,7 +246,7 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 
 ## Workstreams
 
-## API And Contracts
+### Backend API And Contracts
 
 - Registration endpoints.
 - Heartbeat ingestion.
@@ -133,6 +255,7 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 - Owner-facing administrative and data-read endpoints consumed by the NodeJS portal.
 - Token issuance/refresh (JWT) and device-account/API-key management endpoints.
 - Validation and idempotency rules.
+- Contract artifacts that both the API and the portal can validate against.
 
 ## Frontend Portal
 
@@ -141,14 +264,17 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 - Machine and telemetry data views.
 - Power-meter, location, and association management views.
 - Session, token, and API-integration hardening.
+- Trace-aware generic error handling and correlation.
+- Localization, feature-flag discipline, and portal functional testing.
 
-## Agent Runtime
+## Agent Runtime And Hosts
 
 - Scheduling.
 - Telemetry collection.
 - Retry queue.
 - API publishing.
 - Optional power-provider abstraction.
+- Windows Service and systemd host integration.
 
 ## Data And Persistence
 
@@ -157,6 +283,7 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 - Query boundaries.
 - Session derivation logic.
 - Historical association enforcement.
+- Read-model support for future reporting and approval workflows.
 
 ## Deployment And Operations
 
@@ -164,6 +291,7 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 - Service installation scripts or instructions.
 - Configuration handling.
 - Health checks and diagnostics.
+- Portal deployment, origin strategy, and secure session behavior.
 
 ## Testing
 
@@ -176,14 +304,20 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 
 ## Recommended Implementation Sequence
 
-1. Create the solution skeleton and shared contracts.
-2. Implement machine registration and heartbeat ingestion end to end.
-3. Implement runtime-session calculation with tests.
-4. Add retry queue and resilient agent publishing.
-5. Add Windows and Ubuntu service-hosting specifics.
-6. Add independent power-meter registration and storage.
-7. Add Shelly provider integration and association APIs.
-8. Add location and richer inventory support.
+1. Align the current solution topology to the documented target architecture.
+2. Freeze the API, authentication, and portal-integration contract.
+3. Build the identity and persistence foundation.
+4. Build shared contracts and the shared agent runtime.
+5. Deliver heartbeat ingestion and runtime-session reconstruction.
+6. Deliver the first owner administrative, machine-read, and portal MVP flows
+  on the shared API surface.
+7. Add the Windows service host.
+8. Add the Linux daemon host.
+9. Harden operations, observability, and deployment.
+10. Add independent power-meter registration and API-key authentication.
+11. Add Shelly polling and normalized power ingestion.
+12. Add location, association, and portal power workflows.
+13. Add reporting and extended-ingestion readiness work.
 
 ## Major Risks
 
