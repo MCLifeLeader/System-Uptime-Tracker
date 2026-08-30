@@ -156,8 +156,11 @@ internal static class SystemUptimeTrackerAppHostManager
         ];
     }
 
-    internal static void Acquire(SystemUptimeTrackerAppHostReadinessScope readinessScope = SystemUptimeTrackerAppHostReadinessScope.SERVER_AND_CLIENT)
+    internal static void Acquire(
+        string connectionString,
+        SystemUptimeTrackerAppHostReadinessScope readinessScope = SystemUptimeTrackerAppHostReadinessScope.SERVER_AND_CLIENT)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         EnsureCleanupHooksRegistered();
 
         bool startNewProcess = false;
@@ -204,8 +207,6 @@ internal static class SystemUptimeTrackerAppHostManager
                 Directory.CreateDirectory(_appHostTempPath);
                 WriteAppHostTempOwnerMarker(_appHostTempPath, Environment.ProcessId);
 
-                string resolvedQaConnectionString = RegisterDependentServices.ResolveQaDatabaseConnectionString(SystemUptimeTrackerTestEnvironment.Resolve());
-
                 var startInfo = new ProcessStartInfo("dotnet")
                 {
                     WorkingDirectory = _repoRoot,
@@ -222,7 +223,7 @@ internal static class SystemUptimeTrackerAppHostManager
                 startInfo.ArgumentList.Add("Debug");
                 startInfo.ArgumentList.Add("--no-launch-profile");
                 startInfo.ArgumentList.Add("--");
-                startInfo.ArgumentList.Add($"--ConnectionStrings:DefaultConnection={resolvedQaConnectionString}");
+                startInfo.ArgumentList.Add($"--ConnectionStrings:DefaultConnection={connectionString}");
 
                 startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
                 startInfo.Environment["DOTNET_ENVIRONMENT"] = "Development";
@@ -233,7 +234,7 @@ internal static class SystemUptimeTrackerAppHostManager
                 startInfo.Environment["ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL"] =
                     string.Create(CultureInfo.InvariantCulture, $"http://localhost:{GetAspireDashboardOtlpHttpPort()}");
                 startInfo.Environment["ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS"] = "true";
-                startInfo.Environment[DEFAULT_CONNECTION_ENVIRONMENT_VARIABLE] = resolvedQaConnectionString;
+                startInfo.Environment[DEFAULT_CONNECTION_ENVIRONMENT_VARIABLE] = connectionString;
                 startInfo.Environment["TMP"] = _appHostTempPath;
                 startInfo.Environment["TEMP"] = _appHostTempPath;
 

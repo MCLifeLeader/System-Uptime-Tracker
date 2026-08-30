@@ -16,6 +16,8 @@ public abstract class QaTestBase
 
     protected QaAutomationExecutionOptions QaAutomationExecution { get; private set; } = null!;
 
+    protected string AutomationDatabaseConnectionString { get; private set; } = null!;
+
     protected virtual bool IncludeKeyVault => false;
 
     protected virtual string EnvironmentName => "Development";
@@ -41,6 +43,10 @@ public abstract class QaTestBase
         Logger = Services.GetRequiredService<ILoggerFactory>().CreateLogger(GetType());
         AppSettings = Services.GetRequiredService<IOptions<AutomationAppSettings>>().Value;
         QaAutomationExecution = Services.GetRequiredService<IOptions<QaAutomationExecutionOptions>>().Value;
+        ConnectionStringsOptions connectionStrings = Services.GetRequiredService<IOptions<ConnectionStringsOptions>>().Value;
+        AutomationDatabaseConnectionString = RegisterDependentServices.ResolveRuntimeAutomationDatabaseConnectionString(
+            connectionStrings,
+            QaAutomationExecution);
 
         if (!QaAutomationExecution.SkipDatabaseCleanup)
         {

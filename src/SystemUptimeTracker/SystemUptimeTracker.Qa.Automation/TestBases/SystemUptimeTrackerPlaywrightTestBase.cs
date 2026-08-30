@@ -63,7 +63,9 @@ public abstract class SystemUptimeTrackerPlaywrightTestBase : QaPlaywrightTestBa
             return;
         }
 
-        SystemUptimeTrackerAppHostManager.Acquire(SystemUptimeTrackerAppHostReadinessScope.SERVER_AND_CLIENT);
+        SystemUptimeTrackerAppHostManager.Acquire(
+            AutomationDatabaseConnectionString,
+            SystemUptimeTrackerAppHostReadinessScope.SERVER_AND_CLIENT);
     }
 
     protected override void OnHostCreationFailed()

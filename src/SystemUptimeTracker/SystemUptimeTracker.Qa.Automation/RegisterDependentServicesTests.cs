@@ -9,84 +9,63 @@ namespace SystemUptimeTracker.Qa.Automation;
 [TestFixture]
 public sealed class RegisterDependentServicesTests
 {
-    private const string QA_DATABASE_CONNECTION_STRING =
-        "Server=127.0.0.1,10433;Database=SystemUptimeTracker_QaAutomation;User Id=sa;Password=P@ssword123!;Encrypt=True;MultipleActiveResultSets=true;TrustServerCertificate=True";
-
-    private const string MAIN_DATABASE_CONNECTION_STRING =
+    private const string DEFAULT_DATABASE_CONNECTION_STRING =
         "Server=127.0.0.1,10433;Database=SystemUptimeTracker;User Id=sa;Password=P@ssword123!;Encrypt=True;MultipleActiveResultSets=true;TrustServerCertificate=True";
 
     [Test]
-    public void ResolveRuntimeAutomationDatabaseConnectionString_WhenDefaultConnectionIsPlaceholder_FallsBackToQaConnectionString()
+    public void ResolveRuntimeAutomationDatabaseConnectionString_WhenDefaultConnectionIsPlaceholder_Throws()
     {
-        IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
+        ConnectionStringsOptions connectionStrings = new()
         {
-            ["ConnectionStrings:DefaultConnection"] = "Replace-Key-From-Secrets.json",
-            ["ConnectionStrings:SharedQaDatabase"] = "__SET_IN_USER_SECRETS_OR_ENV__",
-        });
-
-        string resolved = RegisterDependentServices.ResolveRuntimeAutomationDatabaseConnectionString(configuration);
-
-        Assert.That(resolved, Does.Contain("Database=SystemUptimeTracker_QaAutomation"));
-    }
-
-    [Test]
-    public void ResolveRuntimeAutomationDatabaseConnectionString_WhenDefaultConnectionIsMissing_FallsBackToQaConnectionString()
-    {
-        IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:SharedQaDatabase"] = QA_DATABASE_CONNECTION_STRING,
-        });
-
-        string resolved = RegisterDependentServices.ResolveRuntimeAutomationDatabaseConnectionString(configuration);
-
-        Assert.That(resolved, Is.EqualTo(QA_DATABASE_CONNECTION_STRING));
-    }
-
-    [Test]
-    public void ResolveRuntimeAutomationDatabaseConnectionString_WhenDefaultConnectionIsConfigured_UsesItVerbatim()
-    {
-        IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:DefaultConnection"] = QA_DATABASE_CONNECTION_STRING,
-        });
-
-        string resolved = RegisterDependentServices.ResolveRuntimeAutomationDatabaseConnectionString(configuration);
-
-        Assert.That(resolved, Is.EqualTo(QA_DATABASE_CONNECTION_STRING));
-    }
-
-    [Test]
-    public void ResolveRuntimeAutomationDatabaseConnectionString_WhenDefaultConnectionTargetsMainDatabase_Throws()
-    {
-        IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:DefaultConnection"] = MAIN_DATABASE_CONNECTION_STRING,
-        });
+            DefaultConnection = "Replace-Key-From-Secrets.json",
+        };
 
         Assert.That(
-            () => RegisterDependentServices.ResolveRuntimeAutomationDatabaseConnectionString(configuration),
-            Throws.InvalidOperationException.With.Message.Contain("must not run against the main SystemUptimeTracker database"));
+            () => RegisterDependentServices.ResolveRuntimeAutomationDatabaseConnectionString(
+                connectionStrings,
+                new QaAutomationExecutionOptions()),
+            Throws.InvalidOperationException.With.Message.Contain("ConnectionStrings:DefaultConnection"));
+    }
+
+    [Test]
+    public void ResolveRuntimeAutomationDatabaseConnectionString_WhenDefaultConnectionIsMissing_Throws()
+    {
+        Assert.That(
+            () => RegisterDependentServices.ResolveRuntimeAutomationDatabaseConnectionString(
+                new ConnectionStringsOptions(),
+                new QaAutomationExecutionOptions()),
+            Throws.InvalidOperationException.With.Message.Contain("ConnectionStrings:DefaultConnection"));
     }
 
     [Test]
     public void ResolveRuntimeAutomationDatabaseConnectionString_WhenMainDatabaseIsExplicitlyAllowed_UsesDefaultConnection()
     {
-        IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
+        ConnectionStringsOptions connectionStrings = new()
         {
-            ["ConnectionStrings:DefaultConnection"] = MAIN_DATABASE_CONNECTION_STRING,
-            ["QaAutomation:AllowMainDatabase"] = "true",
-        });
+            DefaultConnection = DEFAULT_DATABASE_CONNECTION_STRING,
+        };
+        QaAutomationExecutionOptions qaAutomation = new() { AllowMainDatabase = true };
 
-        string resolved = RegisterDependentServices.ResolveRuntimeAutomationDatabaseConnectionString(configuration);
+        string resolved = RegisterDependentServices.ResolveRuntimeAutomationDatabaseConnectionString(
+            connectionStrings,
+            qaAutomation);
 
-        Assert.That(resolved, Is.EqualTo(MAIN_DATABASE_CONNECTION_STRING));
+        Assert.That(resolved, Is.EqualTo(DEFAULT_DATABASE_CONNECTION_STRING));
     }
 
-    private static IConfiguration BuildConfiguration(Dictionary<string, string?> values)
+    [Test]
+    public void ResolveRuntimeAutomationDatabaseConnectionString_WhenDefaultConnectionTargetsMainDatabase_Throws()
     {
-        return new ConfigurationBuilder()
-            .AddInMemoryCollection(values)
-            .Build();
+        ConnectionStringsOptions connectionStrings = new()
+        {
+            DefaultConnection = DEFAULT_DATABASE_CONNECTION_STRING,
+        };
+
+        Assert.That(
+            () => RegisterDependentServices.ResolveRuntimeAutomationDatabaseConnectionString(
+                connectionStrings,
+                new QaAutomationExecutionOptions()),
+            Throws.InvalidOperationException.With.Message.Contain("must not run against the main SystemUptimeTracker database"));
     }
 
     [Test]
@@ -112,5 +91,32 @@ public sealed class RegisterDependentServicesTests
         {
             services.Dispose();
         }
+    }
+
+    [Test]
+    public void RegisterOptions_WhenConfigurationSectionsAreProvided_BindsTypedOptions()
+    {
+        IConfiguration configuration =
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["ConnectionStrings:DefaultConnection"] = DEFAULT_DATABASE_CONNECTION_STRING,
+                    ["QaAutomation:AllowMainDatabase"] = "true",
+                })
+                .Build();
+        ServiceCollection services = new();
+        RegisterDependentServices.RegisterOptions(services, configuration);
+        using ServiceProvider serviceProvider = services.BuildServiceProvider(validateScopes: true);
+
+        ConnectionStringsOptions connectionStrings =
+            serviceProvider.GetRequiredService<IOptions<ConnectionStringsOptions>>().Value;
+        QaAutomationExecutionOptions qaAutomation =
+            serviceProvider.GetRequiredService<IOptions<QaAutomationExecutionOptions>>().Value;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(connectionStrings.DefaultConnection, Is.EqualTo(DEFAULT_DATABASE_CONNECTION_STRING));
+            Assert.That(qaAutomation.AllowMainDatabase, Is.True);
+        });
     }
 }

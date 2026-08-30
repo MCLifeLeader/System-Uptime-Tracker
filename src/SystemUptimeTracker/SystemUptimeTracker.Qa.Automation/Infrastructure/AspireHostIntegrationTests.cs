@@ -13,7 +13,9 @@ public sealed class AspireHostIntegrationTests : SystemUptimeTrackerFunctionalTe
 
         try
         {
-            SystemUptimeTrackerAppHostManager.Acquire(SystemUptimeTrackerAppHostReadinessScope.SERVER_ONLY);
+            SystemUptimeTrackerAppHostManager.Acquire(
+                AutomationDatabaseConnectionString,
+                SystemUptimeTrackerAppHostReadinessScope.SERVER_ONLY);
             Assert.Pass("Aspire AppHost started and the server API backend responded successfully.");
         }
         finally
