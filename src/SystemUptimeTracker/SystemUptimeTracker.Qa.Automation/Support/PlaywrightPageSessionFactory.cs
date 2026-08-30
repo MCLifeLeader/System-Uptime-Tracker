@@ -31,6 +31,11 @@ namespace SystemUptimeTracker.Qa.Automation.Support
             page.SetDefaultNavigationTimeout(configuration.PageLoadTimeoutInSeconds * 1000);
             page.SetDefaultTimeout(configuration.ImplicitWaitInSeconds * 1000);
 
+            // Playwright assertions (Assertions.Expect) use a separate global 5s default that
+            // ignores the page timeouts above. Cold single-test runs compile Next.js routes on
+            // first navigation and routinely exceed 5s, so align it with the command timeout.
+            Assertions.SetDefaultExpectTimeout(configuration.TimeoutCommandSecs * 1000);
+
             return new PlaywrightPageSession(_serviceProvider, context, page);
         }
     }
