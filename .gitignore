@@ -316,6 +316,9 @@ FakesAssemblies/
 .ntvs_analysis.dat
 node_modules/
 
+# Next.js generated TypeScript declarations (managed by Next.js; do not track)
+next-env.d.ts
+
 # Visual Studio 6 build log
 *.plg
 

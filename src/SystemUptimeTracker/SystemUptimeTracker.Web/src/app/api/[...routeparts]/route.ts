@@ -288,8 +288,12 @@ const Action = async (
   const contentType = headers.get("content-type");
   const canHaveBody = ["POST", "PUT", "PATCH"].includes(method);
 
+  // cookies().get(undefined) throws in Next 16.3+, so bail out when
+  // impersonation is not configured for this environment.
   const myCookies = await cookies();
-  const cookie = myCookies.get(impersonateCookie);
+  const cookie = impersonateCookie
+    ? myCookies.get(impersonateCookie)
+    : undefined;
   const cookieValue = cookie?.value;
   let impersonateValue: string | undefined;
 

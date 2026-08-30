@@ -20,6 +20,8 @@ public static class RegisterDependentServices
 {
     private const string SHARED_QA_DATABASE_CONNECTION_STRING_NAME = "SharedQaDatabase";
     private const string SHARED_QA_DATABASE_PLACEHOLDER = "__SET_IN_USER_SECRETS_OR_ENV__";
+    private const string DEFAULT_CONNECTION_STRING_NAME = "DefaultConnection";
+    private const string DEFAULT_CONNECTION_PLACEHOLDER = "Replace-Key-From-Secrets.json";
     private const string MAIN_APPLICATION_DATABASE_NAME = "SystemUptimeTracker";
     private const string DEFAULT_LOCAL_QA_DATABASE_CONNECTION_STRING = "Server=127.0.0.1,10433;Database=SystemUptimeTracker_QaAutomation;User Id=sa;Password=P@ssword123!;Encrypt=True;MultipleActiveResultSets=true;TrustServerCertificate=True";
 
@@ -127,12 +129,19 @@ public static class RegisterDependentServices
         services.AddScoped<SignInManager<ApplicationUser>, ApplicationSignInManager>();
     }
 
-    private static string ResolveRuntimeAutomationDatabaseConnectionString(IConfiguration configuration)
+    internal static string ResolveRuntimeAutomationDatabaseConnectionString(IConfiguration configuration)
     {
-        string? applicationConnectionString = configuration.GetConnectionString("DefaultConnection");
-        return !string.IsNullOrWhiteSpace(applicationConnectionString)
-            ? applicationConnectionString
-            : ResolveQaDatabaseConnectionString(configuration);
+        string? applicationConnectionString = configuration.GetConnectionString(DEFAULT_CONNECTION_STRING_NAME);
+        if (string.IsNullOrWhiteSpace(applicationConnectionString) ||
+            string.Equals(applicationConnectionString, DEFAULT_CONNECTION_PLACEHOLDER, StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveQaDatabaseConnectionString(configuration);
+        }
+
+        // A real DefaultConnection can point anywhere, including the main application
+        // database, so it must pass the same isolation guard as the QA connection string.
+        ValidateQaDatabaseIsolation(configuration, applicationConnectionString);
+        return applicationConnectionString;
     }
 
     private static void RegisterApplicationServices(IServiceCollection services)
