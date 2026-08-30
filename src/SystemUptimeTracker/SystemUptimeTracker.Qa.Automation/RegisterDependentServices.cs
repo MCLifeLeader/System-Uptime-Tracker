@@ -56,8 +56,8 @@ public static class RegisterDependentServices
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
             .AddJsonFile($"appsettings.{environmentName}.json", optional: true, reloadOnChange: false)
-            .AddUserSecrets(Assembly.GetExecutingAssembly(), optional: true)
             .AddUserSecrets(typeof(SystemUptimeTracker.Api.RegisterDependentServices).Assembly, optional: true)
+            .AddUserSecrets(Assembly.GetExecutingAssembly(), optional: true)
             .AddEnvironmentVariables()
             .Build();
     }
