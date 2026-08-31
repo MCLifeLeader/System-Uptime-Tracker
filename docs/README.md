@@ -9,18 +9,20 @@ The current source material started as a design conversation captured in [inital
 1. [product-scope.md](./product-scope.md)
 2. [architecture-overview.md](./architecture-overview.md)
 3. [domain-model.md](./domain-model.md)
-4. [implementation-plan.md](./implementation-plan.md)
-5. [delivery-backlog.md](./delivery-backlog.md)
-6. [backlog/README.md](./backlog/README.md)
-7. [backlog/dependency-tree.md](./backlog/dependency-tree.md)
-8. [windows-service-reference.md](./windows-service-reference.md)
-9. [inital-spec.md](./inital-spec.md)
+4. [api-contracts.md](./api-contracts.md)
+5. [implementation-plan.md](./implementation-plan.md)
+6. [delivery-backlog.md](./delivery-backlog.md)
+7. [backlog/README.md](./backlog/README.md)
+8. [backlog/dependency-tree.md](./backlog/dependency-tree.md)
+9. [windows-service-reference.md](./windows-service-reference.md)
+10. [inital-spec.md](./inital-spec.md)
 
 ## Document Purpose
 
 - [product-scope.md](./product-scope.md): Project goals, scope boundaries, assumptions, and success criteria.
 - [architecture-overview.md](./architecture-overview.md): Proposed system shape, runtime flows, deployment model, and cross-cutting concerns.
 - [domain-model.md](./domain-model.md): Core entities, relationships, identity rules, and data lifecycle guidance.
+- [api-contracts.md](./api-contracts.md): Accepted `/api/v1` route catalog with caller types, authorization policies, status codes, idempotency behavior, and owning epics (TASK-0201).
 - [implementation-plan.md](./implementation-plan.md): Phased execution plan, workstreams, deliverables, risks, and open questions.
 - [delivery-backlog.md](./delivery-backlog.md): Program-level epic dependency
 	graph, critical path, release gates, definition of done, and traceability.

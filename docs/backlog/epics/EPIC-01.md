@@ -2,7 +2,7 @@
 id: EPIC-01
 title: 'Solution And Engineering Foundation'
 type: epic
-status: not-started
+status: in-progress
 release_gate: 'Gate 0'
 depends_on: 'EPIC-00'
 ---
@@ -50,16 +50,22 @@ task file to follow every concrete predecessor link.
 
 ## Tasks
 
-| Task | Objective | Depends on | Initial status |
+| Task | Objective | Depends on | Status |
 |---|---|---|---|
-| [TASK-0101](../tasks/TASK-0101.md) | Inventory the current API, web, data, common, AppHost, test, and QA projects | [TASK-0008](../tasks/TASK-0008.md) | Not started |
-| [TASK-0102](../tasks/TASK-0102.md) | Decide whether `SystemUptimeTracker.Common` becomes the contracts library or whether to add `SystemUptimeTracker.Contracts` | [TASK-0101](../tasks/TASK-0101.md) | Not started |
-| [TASK-0103](../tasks/TASK-0103.md) | Add planned `Agent.Core`, `WindowsService`, `LinuxDaemon`, and `Power.Shelly` projects to the solution only as their first behavior is implemented | [TASK-0101](../tasks/TASK-0101.md) | Not started |
-| [TASK-0104](../tasks/TASK-0104.md) | Preserve the existing .NET 10, Next.js 16, React 19, Node 24, NUnit, Vitest, and Playwright toolchain unless a separate upgrade is approved | [TASK-0101](../tasks/TASK-0101.md) | Not started |
-| [TASK-0105](../tasks/TASK-0105.md) | Establish the baseline commands for restore, build, .NET test, web lint/test/build, and QA smoke execution in contributor documentation | [TASK-0104](../tasks/TASK-0104.md) | Not started |
-| [TASK-0106](../tasks/TASK-0106.md) | Configure CI jobs to run independent .NET, web, contract, migration, and packaging validations with dependency caching | [TASK-0105](../tasks/TASK-0105.md) | Not started |
-| [TASK-0107](../tasks/TASK-0107.md) | Define configuration precedence and environment naming across API, web, agents, and AppHost | [TASK-0101](../tasks/TASK-0101.md) | Not started |
-| [TASK-0108](../tasks/TASK-0108.md) | Define test ownership: unit for pure rules, integration for SQL/API boundaries, functional for workflows, and packaging tests for installed services | [TASK-0105](../tasks/TASK-0105.md) | Not started |
+| [TASK-0101](../tasks/TASK-0101.md) | Inventory the current API, web, data, common, AppHost, test, and QA projects | [TASK-0008](../tasks/TASK-0008.md) | Done |
+| [TASK-0102](../tasks/TASK-0102.md) | Decide whether `SystemUptimeTracker.Common` becomes the contracts library or whether to add `SystemUptimeTracker.Contracts` | [TASK-0101](../tasks/TASK-0101.md) | Done |
+| [TASK-0103](../tasks/TASK-0103.md) | Add planned `Agent.Core`, `WindowsService`, `LinuxDaemon`, and `Power.Shelly` projects to the solution only as their first behavior is implemented | [TASK-0101](../tasks/TASK-0101.md) | Done |
+| [TASK-0104](../tasks/TASK-0104.md) | Preserve the existing .NET 10, Next.js 16, React 19, Node 24, NUnit, Vitest, and Playwright toolchain unless a separate upgrade is approved | [TASK-0101](../tasks/TASK-0101.md) | Done |
+| [TASK-0105](../tasks/TASK-0105.md) | Establish the baseline commands for restore, build, .NET test, web lint/test/build, and QA smoke execution in contributor documentation | [TASK-0104](../tasks/TASK-0104.md) | Done |
+| [TASK-0106](../tasks/TASK-0106.md) | Configure CI jobs to run independent .NET, web, contract, migration, and packaging validations with dependency caching | [TASK-0105](../tasks/TASK-0105.md) | In progress |
+| [TASK-0107](../tasks/TASK-0107.md) | Define configuration precedence and environment naming across API, web, agents, and AppHost | [TASK-0101](../tasks/TASK-0101.md) | Done |
+| [TASK-0108](../tasks/TASK-0108.md) | Define test ownership: unit for pure rules, integration for SQL/API boundaries, functional for workflows, and packaging tests for installed services | [TASK-0105](../tasks/TASK-0105.md) | Done |
+
+Status note (2026-08-30): seven of eight tasks are done with evidence in
+their task files. TASK-0106 has the CI workflow authored
+(`.github/workflows/ci.yml`) and remains in progress until a GitHub Actions
+run supplies the acceptance evidence (green jobs plus a demonstrated
+failing-slice block).
 
 ## Execution Guidance
 

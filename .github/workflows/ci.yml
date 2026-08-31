@@ -1,0 +1,155 @@
+# Continuous integration for System Uptime Tracker (TASK-0106).
+#
+# Jobs are independent validation slices: a failing build or test blocks its
+# owning job, and the job name identifies the failed slice. The contracts job
+# runs the golden JSON wire-contract tests (TASK-0209); the web job includes
+# the portal-side Zod validator tests against the same golden fixtures.
+# Additional slices are added by their owning backlog tasks:
+#   - generated-OpenAPI compatibility check  -> TASK-0209 (as v1 endpoints land)
+#   - migration rollback/reapply and drift   -> TASK-0307
+#   - portal Playwright journeys (QA smoke)  -> TASK-1108
+#   - Windows/Linux packaging lifecycle      -> TASK-0909 / TASK-1007 (Gate 2)
+#
+# Baseline commands mirror CONTRIBUTING.md "Baseline validation commands".
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dotnet:
+    name: .NET build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      # Ephemeral SQL Server for the integration tests. The sa password is
+      # generated per run, masked, and never persisted anywhere; the container
+      # and its data are discarded with the runner.
+      - name: Start SQL Server (ephemeral CI container)
+        run: |
+          SA_PASSWORD="Ci!$(openssl rand -hex 16)"
+          echo "::add-mask::${SA_PASSWORD}"
+          echo "MSSQL_SA_PASSWORD=${SA_PASSWORD}" >> "$GITHUB_ENV"
+          docker run -d --name ci-mssql \
+            -e ACCEPT_EULA=Y \
+            -e MSSQL_SA_PASSWORD="${SA_PASSWORD}" \
+            -p 1433:1433 \
+            mcr.microsoft.com/mssql/server:2022-latest
+
+      - name: Restore
+        run: dotnet restore SystemUptimeTracker.sln
+
+      - name: Build
+        run: dotnet build SystemUptimeTracker.sln --no-restore
+
+      - name: Wait for SQL Server readiness
+        run: |
+          for i in $(seq 1 60); do
+            if docker exec ci-mssql /opt/mssql-tools18/bin/sqlcmd \
+                 -S localhost -U sa -P "${MSSQL_SA_PASSWORD}" -C -Q "SELECT 1" \
+                 >/dev/null 2>&1; then
+              echo "SQL Server is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "SQL Server did not become ready in time." >&2
+          docker logs ci-mssql >&2
+          exit 1
+
+      - name: Unit and integration tests (SystemUptimeTracker.Tests)
+        env:
+          SystemUptimeTracker__Tests__SqlServer__ConnectionString: >-
+            Server=127.0.0.1,1433;Database=master;User Id=sa;
+            Password=${{ env.MSSQL_SA_PASSWORD }};TrustServerCertificate=True;
+            Encrypt=False;MultipleActiveResultSets=True
+        run: >-
+          dotnet test
+          src/SystemUptimeTracker/SystemUptimeTracker.Tests/SystemUptimeTracker.Tests.csproj
+          --no-build
+          --logger "console;verbosity=normal"
+
+  contracts:
+    name: Contract tests (v1 wire contracts)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-contracts-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-contracts-${{ runner.os }}-
+
+      - name: Golden JSON contract tests
+        run: >-
+          dotnet test
+          src/SystemUptimeTracker/SystemUptimeTracker.Contracts.UnitTests/SystemUptimeTracker.Contracts.UnitTests.csproj
+          --logger "console;verbosity=normal"
+
+  web:
+    name: Web lint, tests, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: src/SystemUptimeTracker/SystemUptimeTracker.Web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/SystemUptimeTracker/SystemUptimeTracker.Web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests (Vitest)
+        run: npm run test
+
+      - name: Production build
+        run: npm run build

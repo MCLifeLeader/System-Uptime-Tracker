@@ -385,15 +385,40 @@ erDiagram
 
 ## Registration Lifecycle
 
-Suggested lifecycle states for machines and power meters:
+Lifecycle states for machines and power meters (decided under TASK-0001; see
+[product-scope.md](./product-scope.md#decisions)):
 
-- `Discovered`
-- `PendingApproval`
 - `Active`
 - `Disabled`
 - `Retired`
+- `Discovered` — reserved, unreachable in the first release
+- `PendingApproval` — reserved, unreachable in the first release
 
-This supports staged onboarding without forcing full trust or configuration at first contact.
+First-release registration is self-service and auto-approved, gated by
+owner-provisioned device-account credentials. The reserved states exist so a
+deferred approval workflow (TASK-1507) can be added without a schema change,
+but no first-release code path may produce them.
+
+### State Transitions And Actors
+
+| Transition | Performed by | Trigger |
+|---|---|---|
+| *(none)* → `Active` | Device account (authenticated agent) | First successful registration call creates the machine record, or binds to an owner pre-created record, and activates it immediately. |
+| *(none)* → `Active` (pre-created) | Owner | An owner may pre-create a machine record, optionally assigning a device account, before any agent contact. The record is `Active` but has no `AgentId` until an agent registers against it. |
+| `Active` → `Disabled` | Owner | Owner suspends the machine; the API rejects telemetry for a disabled machine without deleting history. |
+| `Disabled` → `Active` | Owner | Owner re-enables the machine; the existing `AgentId` and history are retained. |
+| `Active` or `Disabled` → `Retired` | Owner | Terminal state. History is preserved; the `AgentId` is never reused; telemetry submission is permanently rejected. |
+
+Rules:
+
+- Agents can only ever cause the registration transition. Every other
+  transition requires an `Owner`-role principal.
+- Re-registration by an agent whose `AgentId` already exists is idempotent: it
+  reconciles metadata and returns the existing `MachineId` rather than creating
+  a duplicate or changing lifecycle state.
+- A registration call authenticated by a disabled or retired device account, or
+  targeting a `Disabled`/`Retired` machine, is rejected with an explicit error
+  and causes no state change.
 
 ## Identity Strategy
 

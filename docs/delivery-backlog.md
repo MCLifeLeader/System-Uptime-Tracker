@@ -463,44 +463,142 @@ schema ownership reversal or silent contract breakage.
 
 ## Release Gates
 
+Gate evidence definitions were decided under TASK-0008 on 2026-08-30. Each gate
+is an objective pass/fail checklist: every unchecked item blocks the gate, and
+every checked item must link to reviewable evidence (CI run, test output,
+artifact, or review record). "CI" means the repository's automated pipeline;
+suite names refer to the test-ownership boundaries defined by TASK-0108.
+
 ### Gate 0: Ready For Feature Implementation
 
-- EPIC-00 decisions are closed.
-- EPIC-01 baseline build and test commands pass.
-- EPIC-02 contracts and OpenAPI compatibility check pass.
-- Architecture documentation matches the current repository structure.
+Target environments: developer workstation (Windows) and CI runners
+(Linux for .NET and web validation).
+
+- [ ] Every EPIC-00 task file records status `done` with completion evidence.
+- [ ] `dotnet restore` and `dotnet build SystemUptimeTracker.sln` succeed from a
+      clean checkout with zero errors.
+- [ ] `dotnet test` passes for every .NET test project in the solution.
+- [ ] Web lint, unit test (Vitest), and production build commands pass for
+      `SystemUptimeTracker.Web`.
+- [ ] The documented baseline commands (TASK-0105) run on a clean checkout
+      without undocumented manual setup.
+- [ ] `docs/api-contracts.md` exists and every `/api/v1` route appears exactly
+      once with caller type, authorization policy, status codes, and idempotency
+      behavior (TASK-0201).
+- [ ] The OpenAPI document generates or validates in CI, and contract tests pass
+      against the accepted v1 surface (TASK-0209).
+- [ ] `architecture-overview.md` names the current projects and intended
+      additions with no contradictory project trees (TASK-0101).
 
 ### Gate 1: Computer Monitoring MVP
 
-- EPIC-03 through EPIC-08 and EPIC-11 are complete.
-- Windows and Ubuntu development hosts can send heartbeats through the shared
-  agent core, even before production packaging is complete.
-- Registration, authentication, heartbeat, retry, session, and portal QA
-  journeys pass against SQL Server.
-- Temporary API outage and delayed upload do not become false machine outage
-  history.
+Target environments: CI with a disposable SQL Server instance (container);
+one Windows and one Ubuntu development host running the shared agent core
+(production packaging not required).
+
+- [ ] EPIC-03, EPIC-04, EPIC-05, EPIC-06, EPIC-07, EPIC-08, and EPIC-11 are
+      complete with linked task evidence.
+- [ ] .NET unit suites pass (pure rules: session calculator, queue policy,
+      normalization, claims).
+- [ ] SQL Server integration suites pass against an isolated, migrated
+      database: migration apply/rollback/reapply, registration, heartbeat
+      idempotency (sequential and concurrent duplicates), session
+      reconstruction (reboot, restart, timeout, delayed, clock-skew), and
+      authorization boundaries.
+- [ ] Contract tests pass: golden JSON payloads, Problem Details error shape,
+      pagination limits, and OpenAPI compatibility.
+- [ ] A Windows development host and an Ubuntu development host each register
+      and deliver heartbeats end-to-end through the shared agent core to the
+      API and SQL Server.
+- [ ] The outage/recovery scenario passes: a simulated API outage with delayed
+      queue upload reconstructs the same runtime sessions as chronological
+      ingestion and produces no false uptime or false outage history.
+- [ ] Portal Playwright journeys pass against the Aspire-hosted API and SQL
+      Server: owner login, device-account management, machine inventory,
+      heartbeat history, and session views.
+- [ ] Automated accessibility checks pass for MVP portal routes, and manual
+      keyboard-review results are recorded.
+- [ ] Rate-limit and lockout tests prove brute-force protection on password,
+      token, refresh, and Basic Auth entry points without blocking health
+      probes.
 
 ### Gate 2: Managed Agent Packaging
 
-- EPIC-09 and EPIC-10 are complete.
-- Disposable Windows and Ubuntu lifecycle suites pass from clean hosts.
-- Upgrade rollback and retained-state recovery are demonstrated on both
-  platforms.
+Target environments: a disposable clean Windows host (ephemeral VM or reset
+image, current supported Windows release) and a disposable clean Ubuntu host
+(minimum supported LTS release). A successful compile is not packaging
+evidence.
+
+- [ ] EPIC-09 and EPIC-10 are complete with linked task evidence.
+- [ ] The Windows lifecycle suite passes from a clean disposable host: first
+      install, repeat install, upgrade, deliberately failed upgrade with
+      automatic rollback to the prior release, reboot/autostart, crash
+      recovery, stop, uninstall, and uninstall-with-retained `ProgramData`
+      state; logs are published as CI artifacts.
+- [ ] The Ubuntu lifecycle suite passes from a clean disposable host covering
+      the same scenarios, plus `systemd-analyze security` output captured with
+      documented exceptions reviewed.
+- [ ] Durable agent identity and queued telemetry survive upgrade and
+      reinstall on both platforms (retained-state evidence).
+- [ ] Pester tests pass for the Windows installer parameter validation,
+      elevation checks, and `WhatIf` behavior.
+- [ ] Published artifacts contain the executable and every required support
+      file, and contain no secret-bearing configuration.
 
 ### Gate 3: Power And Operational Release
 
-- EPIC-12 through EPIC-14 are complete.
-- Computer-only and meter-only deployments remain valid.
-- Dedicated, shared, collector-only, reassignment, and historical views pass.
-- Release artifacts, runbooks, security checks, accessibility checks, backup,
-  restore, upgrade, and rollback evidence are attached to the release record.
+Target environments: CI with SQL Server for integration and QA suites; the
+selected first production-like environment for deployment, backup/restore,
+and observability evidence; disposable hosts for agent lifecycle regression.
+
+- [ ] EPIC-12, EPIC-13, and EPIC-14 are complete with linked task evidence.
+- [ ] Computer-only and meter-only deployment scenarios pass: each entity
+      completes its lifecycle with zero records of the other kind.
+- [ ] The Gate 3 QA suite passes: dedicated load, shared load, collector-only,
+      reassignment, association history, and delayed reading delivery.
+- [ ] Power-reading idempotency tests pass for duplicate, stale, malformed,
+      oversized, unauthorized, and wrong-meter requests.
+- [ ] The release pipeline produces checksummed API, portal, Windows, and
+      Linux artifacts with a version/checksum manifest, only after required
+      tests pass, and a re-run from the same commit is traceable.
+- [ ] Backup, database migration, application rollback, retained agent state,
+      and restore procedures are demonstrated in a disposable environment and
+      meet recorded recovery objectives.
+- [ ] Secret/PII logging review and dependency vulnerability scans (.NET,
+      Node, container, packaging) show no committed secret and no critical
+      unresolved vulnerability; accepted exceptions are recorded.
+- [ ] Runbooks exist for both agents (start, stop, status, logs,
+      configuration, credential rotation, queue diagnosis, upgrade, rollback,
+      uninstall, state recovery) and were exercised by following the document.
+- [ ] Automated accessibility checks pass for all portal routes including
+      power workflows.
+- [ ] One QA transaction can be traced across portal, API, and agent logs by
+      correlation ID without exposing credentials or secrets.
+- [ ] The Gate 3 release review record links every security, accessibility,
+      performance, operations, and product acceptance criterion to test
+      output, an artifact, or an approved exception.
 
 ### Gate 4: Extended Reporting And Ingestion
 
-- Approved EPIC-15 tasks are complete; explicitly rejected optional tasks are
-  recorded as decisions rather than silently skipped.
-- Existing `/api/v1` agents pass compatibility tests.
-- Aggregate queries satisfy documented correctness and performance limits.
+Target environments: CI with SQL Server seeded to expected first-release data
+volumes; existing v1 agents from the Gate 2/3 artifacts.
+
+- [ ] Approved EPIC-15 tasks are complete; every rejected optional task is
+      recorded as an explicit decision, not silently skipped.
+- [ ] Compatibility tests prove existing `/api/v1` Gate 2/3 agent artifacts
+      register, heartbeat, and (where configured) publish readings unchanged.
+- [ ] Reporting SQL integration tests verify correctness of uptime totals,
+      session trends, meter energy, and location summaries against known
+      fixtures, and query plans avoid unbounded scans at expected volumes.
+- [ ] Every report and export preserves units, time-zone context, and
+      measured/shared/estimated labeling, verified by browser and export
+      tests that agree on totals.
+- [ ] If estimated allocation was approved, estimates are reproducible,
+      labeled, and never mutate measured readings; if rejected, the decision
+      is recorded.
+- [ ] If an alternate ingestion path was approved, the same vendor event
+      through two paths produces one logical reading; if rejected, the
+      decision is recorded.
 
 ## Cross-Epic Definition Of Done
 

@@ -2,7 +2,7 @@
 id: EPIC-00
 title: 'Decisions And Acceptance Baseline'
 type: epic
-status: not-started
+status: done
 release_gate: 'Gate 0'
 depends_on: 'None'
 ---
@@ -50,16 +50,16 @@ task file to follow every concrete predecessor link.
 
 ## Tasks
 
-| Task | Objective | Depends on | Initial status |
+| Task | Objective | Depends on | Status |
 |---|---|---|---|
-| [TASK-0001](../tasks/TASK-0001.md) | Decide whether first-release registration is pre-provisioned, self-service, or approval-based | None | Not started |
-| [TASK-0002](../tasks/TASK-0002.md) | Decide whether the deployment supports one owner or multiple owners and whether data is isolated by owner | None | Not started |
-| [TASK-0003](../tasks/TASK-0003.md) | Select the default device-account policy: shared account or one account per machine, while retaining both supported modes | None | Not started |
-| [TASK-0004](../tasks/TASK-0004.md) | Decide whether the bootstrap password is single-use or a standing fallback after the first refresh token is issued | None | Not started |
-| [TASK-0005](../tasks/TASK-0005.md) | Accept configurable defaults for heartbeat interval, offline threshold, session-break threshold, clock-skew tolerance, and detailed-telemetry interval | None | Not started |
-| [TASK-0006](../tasks/TASK-0006.md) | Accept the retry store technology, 7-day age cap, 100 MB size cap, retry schedule, overflow policy, and poison-message policy | None | Not started |
-| [TASK-0007](../tasks/TASK-0007.md) | Decide whether power readings use a separate endpoint, a combined heartbeat payload, or both | None | Not started |
-| [TASK-0008](../tasks/TASK-0008.md) | Define Gate 1, Gate 2, Gate 3, and Gate 4 release evidence, including required automated suites and target environments | None | Not started |
+| [TASK-0001](../tasks/TASK-0001.md) | Decide whether first-release registration is pre-provisioned, self-service, or approval-based | None | Done |
+| [TASK-0002](../tasks/TASK-0002.md) | Decide whether the deployment supports one owner or multiple owners and whether data is isolated by owner | None | Done |
+| [TASK-0003](../tasks/TASK-0003.md) | Select the default device-account policy: shared account or one account per machine, while retaining both supported modes | None | Done |
+| [TASK-0004](../tasks/TASK-0004.md) | Decide whether the bootstrap password is single-use or a standing fallback after the first refresh token is issued | None | Done |
+| [TASK-0005](../tasks/TASK-0005.md) | Accept configurable defaults for heartbeat interval, offline threshold, session-break threshold, clock-skew tolerance, and detailed-telemetry interval | None | Done |
+| [TASK-0006](../tasks/TASK-0006.md) | Accept the retry store technology, 7-day age cap, 100 MB size cap, retry schedule, overflow policy, and poison-message policy | None | Done |
+| [TASK-0007](../tasks/TASK-0007.md) | Decide whether power readings use a separate endpoint, a combined heartbeat payload, or both | None | Done |
+| [TASK-0008](../tasks/TASK-0008.md) | Define Gate 1, Gate 2, Gate 3, and Gate 4 release evidence, including required automated suites and target environments | None | Done |
 
 ## Execution Guidance
 
@@ -79,6 +79,20 @@ task file to follow every concrete predecessor link.
 - Security, accessibility, performance, observability, and operational review
   findings are resolved or explicitly accepted.
 - Gate 0 evidence is updated when this epic contributes to that gate.
+
+## Completion Record
+
+Completed 2026-08-30. All eight decision tasks are `done` with completion
+evidence in their task files. Decisions are merged into
+[product-scope.md](../../product-scope.md#decisions),
+[domain-model.md](../../domain-model.md#registration-lifecycle),
+[architecture-overview.md](../../architecture-overview.md),
+[implementation-plan.md](../../implementation-plan.md), and
+[delivery-backlog.md](../../delivery-backlog.md#release-gates); the
+Open Product Decisions list in product scope is empty. Validation:
+`dotnet build` 0 errors; `dotnet test` 158/158 (Tests) and 43/43
+(Qa.Automation) passed; `npm run verify` (web lint + Vitest) 106 passed /
+8 skipped. Gate 0 remains open pending EPIC-01 and EPIC-02.
 
 ## Related Documents
 

@@ -350,21 +350,24 @@ summarized in [delivery-backlog.md](./delivery-backlog.md):
 ## Open Technical Questions
 
 - Will SQL Server be available locally through containers for everyday development and tests?
-- Should the retry queue start in SQLite or in a simpler file-based format? [inital-spec.md](./inital-spec.md) already recommends a SQLite-backed queue with a 7-day/100 MB cap and a 15s/30s/1m/5m/15m backoff progression — this question is whether to adopt that recommendation as-is or revisit it, not whether to start from a blank slate.
-- Is the first agent registration flow self-service, pre-provisioned, or approval-based?
-- Should power readings travel inside heartbeat payloads, through separate endpoints, or both?
 - What minimum owner-facing administrative and data-read API surface is required for the first management-portal release?
 - Should the NodeJS portal act purely as a server-rendered/BFF-style client to the API, or is direct browser-to-API access acceptable for selected read operations?
-- What are the accepted default values for heartbeat interval, offline threshold, and session-break threshold? [inital-spec.md](./inital-spec.md) proposes 60 seconds, 3 minutes, and 5 minutes respectively as illustrative starting points; [architecture-overview.md](./architecture-overview.md) repeats them but they are not yet a confirmed decision.
-- No document yet enumerates the concrete API routes, request/response payloads, and token endpoint contract (login/refresh request and response shapes, JWT claims such as `AgentId`/`MachineId`, access-token lifetime, Basic Auth header format) as an accepted contract — today these only exist as examples inside the raw [inital-spec.md](./inital-spec.md) transcript, and that transcript predates the Owner/DeviceAccount/JWT/Basic-Auth decision entirely. A dedicated API contracts document (or an addition to this plan) should be produced before or during Phase 1 so the API and agent implementations build against the same accepted shapes.
-- Should device accounts be provisioned one-per-machine by default, or is a shared account the default with dedicated per-device accounts as an opt-in? (See [product-scope.md](./product-scope.md).)
-- Is more than one owner account expected in the first release, and if so, must each owner's devices/data be isolated from other owners'? (See [product-scope.md](./product-scope.md).)
-- Is the initial device-account credential single-use (invalidated after the first JWT login) or a standing fallback credential? (See [product-scope.md](./product-scope.md).)
+- No document yet enumerates the concrete API routes, request/response payloads, and token endpoint contract (login/refresh request and response shapes, JWT claims such as `AgentId`/`MachineId`, access-token lifetime, Basic Auth header format) as an accepted contract — today these only exist as examples inside the raw [inital-spec.md](./inital-spec.md) transcript, and that transcript predates the Owner/DeviceAccount/JWT/Basic-Auth decision entirely. A dedicated API contracts document (`docs/api-contracts.md`, owned by TASK-0201) must be produced before or during Phase 1 so the API and agent implementations build against the same accepted shapes.
+
+Resolved on 2026-08-30 under EPIC-00 (details in [product-scope.md](./product-scope.md#decisions)):
+
+- Retry queue (TASK-0006): SQLite-backed, 7-day/100 MB caps, jittered 15s/30s/1m/5m/15m backoff, oldest-first eviction, dead-letter policy — adopted as proposed.
+- Registration flow (TASK-0001): self-service and auto-approved, gated by owner-provisioned device-account credentials; no approval workflow in the first release.
+- Power readings (TASK-0007): separate `POST /api/v1/power-readings` endpoint with one canonical storage command; never combined into heartbeat payloads.
+- Telemetry timing defaults (TASK-0005): heartbeat 60 s, offline threshold 180 s, session break 300 s, clock-skew tolerance 300 s, detailed telemetry 900 s, with documented ranges and configuration scope.
+- Device-account default (TASK-0003): one dedicated account per machine by default; shared account remains an owner opt-in.
+- Owner model (TASK-0002): multiple owners in a single trust domain; no per-owner data isolation.
+- Bootstrap credential (TASK-0004): single-use for JWT accounts, invalidated on first successful login; API-key accounts keep a standing revocable key by design.
 
 ## Definition Of Ready For Implementation
 
 - Project naming and solution structure are agreed.
-- Initial authentication approach is selected: ASP.NET Core Identity local accounts, an `Owner`/`DeviceAccount` ownership model, JWT bearer tokens as the primary scheme, and HTTP Basic Auth with a hashed API key as a fallback for devices that cannot rotate JWTs (decided; see [product-scope.md](./product-scope.md)). The concrete token endpoint contract and default account-provisioning policy remain open — see the questions above.
+- Initial authentication approach is selected: ASP.NET Core Identity local accounts, an `Owner`/`DeviceAccount` ownership model, JWT bearer tokens as the primary scheme, and HTTP Basic Auth with a hashed API key as a fallback for devices that cannot rotate JWTs (decided; see [product-scope.md](./product-scope.md)). The default account-provisioning policy and bootstrap-credential lifecycle are also decided (TASK-0003, TASK-0004); the concrete token endpoint contract remains open until TASK-0204.
 - Runtime-session rules are agreed well enough to implement tests.
 - Minimum machine and power-meter data fields are accepted.
 - Deployment targets for the first environment are identified.

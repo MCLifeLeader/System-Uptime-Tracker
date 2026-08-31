@@ -26,7 +26,7 @@ The system also needs an extensible path for optional power telemetry, starting 
 - Software inventory, patch management, or process inspection.
 - Automatic agent updates.
 - Real-time alerting beyond basic health visibility.
-- A multi-tenant SaaS platform (isolated organizations, billing, cross-tenant data partitioning). The owner/device-account model described under [Decisions](#decisions) is single-deployment ownership and access control, not a multi-tenant hosting model — see the open question below on whether more than one owner account is even expected in the first release.
+- A multi-tenant SaaS platform (isolated organizations, billing, cross-tenant data partitioning). The owner/device-account model described under [Decisions](#decisions) is single-deployment ownership and access control, not a multi-tenant hosting model — the first release supports multiple owner accounts in a single trust domain with no per-owner data isolation (decided, TASK-0002; see [Decisions](#decisions)).
 
 ## Product Principles
 
@@ -159,13 +159,111 @@ The first release should be delivered in paired backend and frontend slices.
   - Both schemes authorize into the same restricted, telemetry-only scope; neither can reach administrative endpoints (association management, location management, device-account management), which require an owner account.
   - The NodeJS management portal uses owner accounts against the same API rather than a separate backend. Device ingestion and human administration share one API surface, separated by route purpose and authorization scope rather than by separate servers.
   - This supersedes the `Authorization: AgentKey ...` scheme shown in [inital-spec.md](./inital-spec.md). See [architecture-overview.md](./architecture-overview.md#authentication-and-authorization) for the design and [domain-model.md](./domain-model.md) for the `DeviceAccount` entity and how a `Machine` links to it.
+- **Machine registration model (decided, TASK-0001):** First-release registration
+  is **self-service and auto-approved, gated by owner-provisioned credentials**.
+  The owner creates a device account and delivers its bootstrap credential to the
+  machine out-of-band; any agent that authenticates with a valid, active device
+  account may register itself and immediately becomes `Active`. There is no
+  approval queue in the first release, so the deferred approval workflow
+  (TASK-1507) is **not selected** and the `Discovered` and `PendingApproval`
+  lifecycle states remain reserved and unreachable until an approval workflow is
+  ever adopted. An owner may optionally pre-create a machine record (with or
+  without an assigned device account); when an agent registers with matching
+  identity, the registration binds to that record instead of creating a new one.
+  Concrete states, transitions, and the actors allowed to perform them are
+  documented in [domain-model.md](./domain-model.md#registration-lifecycle).
+- **Owner model and data visibility (decided, TASK-0002):** The first release
+  supports **multiple owner accounts in a single trust domain with no per-owner
+  data isolation**. Every user in the `Owner` role can view and administer every
+  device account, machine, power meter, session, and telemetry record in the
+  deployment. `DeviceAccount.OwnerUserId` records administrative responsibility
+  and audit context (who created or currently stewards the account, reassignable
+  by any owner); it is **not** a query filter or visibility boundary.
+  Consequences for implementation: owner-facing endpoints authorize on the
+  `Owner` role alone, queries do not filter by owner, and no entity needs an
+  owner-scoping column beyond the existing `OwnerUserId` audit reference. This
+  keeps the explicit non-goal of multi-tenancy intact; introducing per-owner
+  isolation later would be a deliberate, breaking authorization redesign.
+- **Default device-account policy (decided, TASK-0003):** The default is **one
+  dedicated device account per machine**; a shared device account backing many
+  machines remains a fully supported owner opt-in. Portal and documentation
+  flows should lead the owner toward creating a dedicated account when onboarding
+  a machine, because a dedicated account gives per-machine credential revocation
+  and the smallest blast radius when a credential is compromised. The owner can
+  still create a shared account and point any number of machines at it; nothing
+  in the schema or API privileges one mode over the other beyond this first-run
+  default.
+- **Bootstrap credential lifecycle (decided, TASK-0004):** The device-account
+  bootstrap password for JWT-capable devices is **single-use**. Lifecycle:
+  - **Issue:** Creating (or rotating credentials on) a device account produces a
+    cryptographically random bootstrap password, displayed to the owner exactly
+    once and stored only as an Identity password hash.
+  - **First use:** The device logs in once with the bootstrap password to obtain
+    its first access token and refresh token. On the first successful login the
+    bootstrap password is invalidated; it can never authenticate again.
+  - **Rotation:** Thereafter the device lives on refresh-token rotation. The
+    access token is refreshed proactively before expiry, and each refresh rotates
+    the refresh token.
+  - **Revocation:** An owner can revoke outstanding refresh tokens or disable the
+    device account at any time; the device is locked out no later than the next
+    access-token expiry or refresh attempt.
+  - **Recovery:** If a device loses its refresh token, or the token expires or is
+    revoked, the owner issues a new single-use bootstrap credential (a credential
+    rotation, which also revokes all outstanding refresh tokens for that account)
+    and delivers it to the device out-of-band, repeating first use.
+  - API-key device accounts are intentionally different: the hashed API key is a
+    **standing** credential by design (that is the constrained-device fallback),
+    individually revocable and rotatable. The single-use rule applies to the JWT
+    bootstrap password only.
+- **Telemetry timing defaults (decided, TASK-0005):** The following defaults are
+  accepted. All values are expressed in seconds in configuration, all comparisons
+  use UTC, and server-side values support an optional per-machine override before
+  Gate 1 exit.
+
+  | Setting | Default | Valid range | Configured where |
+  |---|---:|---|---|
+  | Heartbeat interval | 60 s | 15 s – 3600 s | Agent configuration |
+  | Offline threshold | 180 s | > 2 × heartbeat interval, ≤ 86400 s | Server (session logic), per-machine override |
+  | Session-break threshold | 300 s | ≥ offline threshold, ≤ 86400 s | Server (session logic), per-machine override |
+  | Clock-skew tolerance | 300 s | 0 s – 900 s | Server (applied when comparing client `SentAtUtc` to server `ReceivedAtUtc`) |
+  | Detailed-telemetry interval | 900 s | ≥ heartbeat interval, ≤ 86400 s | Agent configuration |
+
+  CPU and memory metrics ride on every heartbeat; the detailed-telemetry interval
+  governs how often the heavier storage-volume snapshot is included. The offline
+  threshold marks a machine as offline in current-status views; the session-break
+  threshold is the gap that closes a runtime session (see
+  [architecture-overview.md](./architecture-overview.md)).
+- **Agent retry queue (decided, TASK-0006):** The [inital-spec.md](./inital-spec.md)
+  proposal is adopted as-is: a **SQLite-backed durable queue** under the agent's
+  durable data root, with a **7-day maximum age**, a **100 MB maximum size**, and
+  a retry progression of **15 s, 30 s, 1 m, 5 m, 15 m** (then steady-state at
+  15 m) with jitter applied to every delay. Overflow policy: when either cap is
+  exceeded, evict **oldest-first deterministically** and count every eviction in
+  an explicit data-loss metric. Poison-message policy: responses classified as
+  terminal (validation, authorization, unsupported version) are **never
+  retried** — the item is moved to a bounded dead-letter table inside the same
+  store with a diagnostic record, and a poison item must never block later
+  eligible items. Retryable classifications (network failure, `408`, `429`,
+  `5xx`) follow the schedule and honor a valid `Retry-After` header.
+- **Power-reading ingestion contract (decided, TASK-0007):** Power readings use a
+  **separate endpoint** (`POST /api/v1/power-readings`); they are never embedded
+  in heartbeat payloads. There is exactly **one canonical power-reading storage
+  command**, and every ingestion path — agent polling now, any future direct or
+  broker path — must normalize into it so idempotency (meter identity plus
+  `MessageId`) is enforced in one place. Shelly support starts as **agent polling
+  only**; direct/MQTT/webhook ingestion is deferred to the EPIC-15 evaluation
+  (TASK-1505) and requires no contract change because of the single canonical
+  command.
+- **Minimum location/monitored-device workflow (decided):** The minimum operator
+  workflow for locations and monitored devices is the owner CRUD and
+  end-association surface defined by TASK-1307, plus the accessible portal
+  workflows for meter registration, locations, monitored devices, and
+  association timelines defined by TASK-1309. No additional operator tooling is
+  in scope for the first release.
 
 ## Open Product Decisions
 
-- Whether agent registration is auto-approved or requires an approval workflow.
-- Whether device accounts are provisioned one-per-machine by default, or a shared account is the default with dedicated per-device accounts as an opt-in — the owner can choose either way, but the first-run default still needs to be picked.
-- Whether more than one owner account is expected in the first release, and if so, whether each owner's devices and data must be isolated from other owners' (which would be a light form of multi-tenancy) or whether all owners share full visibility. Today the model assumes ownership without necessarily assuming isolation; this needs an explicit answer before it affects query/authorization design.
-- Whether the initial device-account credential (used only to bootstrap the first JWT) should be treated as one-time/single-use and invalidated after first successful login, or remain a standing password the device can always fall back to.
-- Whether Shelly support starts as agent polling only or also includes an early direct-ingestion path.
-- What the minimum operator workflow should be for managing locations and monitored-device associations once power-meter support is enabled.
-- Whether the retry-queue technology and limits proposed in [inital-spec.md](./inital-spec.md) (SQLite-backed, 7-day/100 MB cap, 15s/30s/1m/5m/15m backoff) should be adopted as-is; see the corresponding open question in [implementation-plan.md](./implementation-plan.md).
+- None currently open. All previously listed open decisions were resolved on
+  2026-08-30 under EPIC-00 (see [Decisions](#decisions) above and the EPIC-00
+  task files under [backlog/tasks](./backlog/tasks/)). Record any new open
+  product decision here and open a corresponding backlog task.

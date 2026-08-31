@@ -2,7 +2,7 @@
 
 A small, cross-platform .NET system for tracking computer uptime and telemetry, with optional power-usage monitoring through smart plugs. A lightweight background agent runs on Windows and Ubuntu Linux, reports heartbeats and system telemetry over HTTPS to a central ASP.NET Core API, and the API persists everything to SQL Server for uptime history and reporting.
 
-> **Status: design phase.** No application code has been written yet. The design work lives under [docs/](docs/): [docs/product-scope.md](docs/product-scope.md), [docs/architecture-overview.md](docs/architecture-overview.md), [docs/domain-model.md](docs/domain-model.md), and [docs/implementation-plan.md](docs/implementation-plan.md) are the structured, up-to-date references; [docs/inital-spec.md](docs/inital-spec.md) is the original design conversation plus later implementation amendments. This README reflects that intended direction. The repository currently carries a general-purpose Azure/.NET developer-environment scaffold (dev container, local dependency containers, DevOps pipeline placeholders, Copilot/Codex instruction library) that implementation will build on top of.
+> **Status: foundation phase.** The repository contains a working baseline — a .NET 10 solution ([SystemUptimeTracker.sln](SystemUptimeTracker.sln)) with an ASP.NET Core API and SQL Server-backed Identity, an Aspire AppHost, shared/data libraries, NUnit tests, Playwright QA automation, and a Next.js 16 owner portal — plus the design documents under [docs/](docs/). Telemetry ingestion, agents, and packaging are being delivered epic by epic against [docs/backlog/README.md](docs/backlog/README.md); see [docs/architecture-overview.md](docs/architecture-overview.md#current-repository-baseline) for what exists versus what is planned. The repository also carries a general-purpose Azure/.NET developer-environment scaffold (dev container, local dependency containers, DevOps pipeline placeholders, Copilot/Codex instruction library) inherited from a template.
 
 ## What it does
 
@@ -84,7 +84,7 @@ The guiding principle: **measured power belongs to the meter**; location and dev
 ## Repository layout
 
 - [docs/](docs/) — project documentation; start with [docs/README.md](docs/README.md) for the reading order.
-- [src/](src/) — application source (not yet populated; will hold the solution described above).
+- [src/](src/) — application source: the `SystemUptimeTracker` solution projects (API, web portal, data, common, ServiceDefaults, AppHost, tests, QA automation). Baseline build/test commands are documented in [CONTRIBUTING.md](CONTRIBUTING.md#baseline-validation-commands).
 - [containers/](containers/) — Docker Compose services for local dependencies (SQL Server, Seq, WireMock, and others not all needed by this project — trim what you don't use).
 - [devops/](devops/) — CI/CD pipeline and infrastructure-as-code scaffolding.
 - [.github/](.github/) — Copilot/Codex instructions, agent personas, prompts, and skills used while developing this repository.

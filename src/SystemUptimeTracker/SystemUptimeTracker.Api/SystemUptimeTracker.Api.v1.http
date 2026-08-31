@@ -1,0 +1,178 @@
+# Executable examples for the accepted /api/v1 contract (TASK-0209).
+# Payloads are the golden examples pinned by SystemUptimeTracker.Contracts.UnitTests
+# and src/utils/api-contracts/v1.test.ts in the web project.
+# Routes become live as their owning epics land (see docs/api-contracts.md);
+# every response carries the X-Trace-Id header (TASK-0208).
+
+@SystemUptimeTracker.Api_HostAddress = https://localhost:7060
+@deviceAccessToken = replace-with-device-access-token
+@ownerAccessToken = replace-with-owner-access-token
+
+### Owner login (EPIC-04)
+POST {{SystemUptimeTracker.Api_HostAddress}}/api/v1/auth/owner/login
+Content-Type: application/json
+
+{
+  "email": "owner@example.test",
+  "password": "example-password"
+}
+
+### Device login with the single-use bootstrap credential (EPIC-04)
+POST {{SystemUptimeTracker.Api_HostAddress}}/api/v1/auth/device/login
+Content-Type: application/json
+
+{
+  "deviceAccountName": "DEV-WORKSTATION-01",
+  "password": "example-one-time-bootstrap"
+}
+
+### Refresh (rotates the refresh token; replay of the old token is rejected)
+POST {{SystemUptimeTracker.Api_HostAddress}}/api/v1/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "example-refresh-token"
+}
+
+### Revoke every refresh token for the calling principal (idempotent)
+POST {{SystemUptimeTracker.Api_HostAddress}}/api/v1/auth/revoke
+Content-Type: application/json
+Authorization: Bearer {{ownerAccessToken}}
+
+{
+  "revokeAll": true
+}
+
+### Create a device account (dedicated-per-machine default, TASK-0003)
+POST {{SystemUptimeTracker.Api_HostAddress}}/api/v1/device-accounts
+Content-Type: application/json
+Authorization: Bearer {{ownerAccessToken}}
+
+{
+  "name": "DEV-WORKSTATION-01",
+  "allowedAuthenticationMethods": "Jwt"
+}
+
+### Register a machine (idempotent on agentId; 201 created / 200 reconciled)
+POST {{SystemUptimeTracker.Api_HostAddress}}/api/v1/machines/register
+Content-Type: application/json
+Authorization: Bearer {{deviceAccessToken}}
+
+{
+  "payloadVersion": 1,
+  "agentId": "3a812c1a-9dfd-42e7-97f4-8a47d68971e4",
+  "machineName": "BUILD-SERVER-01",
+  "operatingSystem": "Ubuntu 24.04.3 LTS",
+  "operatingSystemVersion": "24.04.3",
+  "architecture": "X64",
+  "agentVersion": "1.0.0"
+}
+
+### Submit a heartbeat (idempotency key agentId + sequenceNumber; 202 / 200 duplicate)
+POST {{SystemUptimeTracker.Api_HostAddress}}/api/v1/heartbeats
+Content-Type: application/json
+Authorization: Bearer {{deviceAccessToken}}
+
+{
+  "payloadVersion": 1,
+  "agentId": "3a812c1a-9dfd-42e7-97f4-8a47d68971e4",
+  "sequenceNumber": 4211,
+  "sentAtUtc": "2026-07-25T15:30:00Z",
+  "agentStartedAtUtc": "2026-07-25T12:10:34Z",
+  "systemBootTimeUtc": "2026-07-24T18:42:11Z",
+  "machineName": "BUILD-SERVER-01",
+  "operatingSystem": "Ubuntu 24.04.3 LTS",
+  "operatingSystemVersion": "24.04.3",
+  "architecture": "X64",
+  "agentVersion": "1.0.0",
+  "processor": {
+    "logicalProcessorCount": 16,
+    "usagePercent": 14.7
+  },
+  "memory": {
+    "totalBytes": 34359738368,
+    "availableBytes": 18253611008
+  },
+  "storage": [
+    {
+      "volumeName": "/",
+      "fileSystem": "ext4",
+      "totalBytes": 1073741824000,
+      "availableBytes": 584115552256
+    }
+  ]
+}
+
+### List machines (bounded pagination, TASK-0205)
+GET {{SystemUptimeTracker.Api_HostAddress}}/api/v1/machines?page=1&pageSize=50
+Accept: application/json
+Authorization: Bearer {{ownerAccessToken}}
+
+### Machine heartbeat history (bounded UTC window required)
+GET {{SystemUptimeTracker.Api_HostAddress}}/api/v1/machines/7f1d2f7e-4a83-4a5f-9f6a-2f4f0f1b2c3d/heartbeats?fromUtc=2026-08-29T00:00:00Z&toUtc=2026-08-30T00:00:00Z&page=1&pageSize=50
+Accept: application/json
+Authorization: Bearer {{ownerAccessToken}}
+
+### Machine runtime sessions (EPIC-06)
+GET {{SystemUptimeTracker.Api_HostAddress}}/api/v1/machines/7f1d2f7e-4a83-4a5f-9f6a-2f4f0f1b2c3d/sessions?page=1&pageSize=50
+Accept: application/json
+Authorization: Bearer {{ownerAccessToken}}
+
+### Register a power meter independently of any machine (EPIC-12)
+POST {{SystemUptimeTracker.Api_HostAddress}}/api/v1/power-meters
+Content-Type: application/json
+Authorization: Bearer {{ownerAccessToken}}
+
+{
+  "vendor": "Shelly",
+  "externalDeviceId": "shellyplugus4-a8032ab12345",
+  "name": "Kitchen Plug",
+  "model": "Plug US Gen4",
+  "macAddress": "A8:03:2A:B1:23:45",
+  "ipAddress": "192.168.1.57",
+  "connectionType": "AgentPolling",
+  "authenticationReference": "shelly/kitchen-plug"
+}
+
+### Submit a power reading via Basic Auth API key (constrained-device fallback)
+# Authorization: Basic base64(deviceAccountName:apiKey)
+POST {{SystemUptimeTracker.Api_HostAddress}}/api/v1/power-readings
+Content-Type: application/json
+Authorization: Basic U0hFTExZLVBMVUctS0lUQ0hFTjpleGFtcGxlLW9uZS10aW1lLWFwaS1rZXk=
+
+{
+  "payloadVersion": 1,
+  "vendor": "Shelly",
+  "externalDeviceId": "shellyplugus4-a8032ab12345",
+  "messageId": "b6a1f2c3-d4e5-4f60-8a9b-0c1d2e3f4a5b",
+  "measuredAtUtc": "2026-08-30T12:00:00Z",
+  "activePowerWatts": 87.4,
+  "voltage": 119.8,
+  "currentAmps": 0.74,
+  "apparentPowerVoltAmps": 89.1,
+  "powerFactor": 0.98,
+  "frequencyHz": 60.0,
+  "totalEnergyWattHours": 15234.6,
+  "returnedEnergyWattHours": 0,
+  "outputIsOn": true,
+  "deviceTemperatureCelsius": 41.2
+}
+
+### Associate the reporting machine with the meter (dedicated load)
+POST {{SystemUptimeTracker.Api_HostAddress}}/api/v1/machine-power-meter-associations
+Content-Type: application/json
+Authorization: Bearer {{ownerAccessToken}}
+
+{
+  "machineId": "7f1d2f7e-4a83-4a5f-9f6a-2f4f0f1b2c3d",
+  "powerMeterId": "1a2b3c4d-5e6f-4a70-8b91-a2b3c4d5e6f7",
+  "relationshipType": "DedicatedLoad",
+  "effectiveFromUtc": "2026-08-30T00:00:00Z",
+  "isPrimary": true
+}
+
+### Liveness probe (anonymous, no rate limit)
+GET {{SystemUptimeTracker.Api_HostAddress}}/health/live
+Accept: application/json
+
+###

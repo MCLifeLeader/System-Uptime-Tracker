@@ -23,6 +23,46 @@ renames it, that project is the implementation vehicle for the
 - `SystemUptimeTracker.Data`: Entity Framework Core data layer, entities, and migrations.
 - `SystemUptimeTracker.Power.Shelly`: Shelly normalization and provider logic.
 
+## Current Repository Baseline
+
+Inventory recorded under TASK-0101 on 2026-08-30. All existing projects live
+under `src/SystemUptimeTracker/` in `SystemUptimeTracker.sln` and target
+.NET 10 (`net10.0`) unless noted.
+
+| Existing project | Architecture responsibility it owns today |
+|---|---|
+| `SystemUptimeTracker.Api` | The `SystemUptimeTracker.Api` deployable: ASP.NET Core API host with the SQL Server-backed Identity foundation. References `Common`, `Data`, and `ServiceDefaults`, plus a build-orchestration-only reference to the Web project (`ReferenceOutputAssembly=false`). |
+| `SystemUptimeTracker.Web` | The portal role (`SystemUptimeTracker.Portal` in this document): Next.js 16 / React 19 / Node 24 application (`.esproj`) with Vitest, Storybook, ESLint, and Zod already in place. |
+| `SystemUptimeTracker.Data` | The `SystemUptimeTracker.Data` shared library: EF Core data layer and Identity schema; references `Common`. Telemetry entities and migrations are added here by EPIC-03. |
+| `SystemUptimeTracker.Common` | Shared utility library with no project dependencies (HTTP client wrapper, logging/redaction helpers, repository base classes, feature-flag and caching constants). Decided (TASK-0102): `Common` does **not** become the contracts library — it depends on EF Core SqlServer and other runtime packages that wire contracts must not carry. It remains the general shared library. |
+| `SystemUptimeTracker.ServiceDefaults` | Aspire service defaults: shared observability, resilience, and service-discovery wiring for hosted services. |
+| `SystemUptimeTracker.AppHost` | Aspire AppHost (Aspire SDK 13.5.3): local development orchestration for the API and its dependencies; references `Api`. |
+| `SystemUptimeTracker.Tests` | .NET test project (NUnit) covering `Api`, `Data`, and `Common`. Test-ownership boundaries for future suites are defined by TASK-0108. |
+| `SystemUptimeTracker.Qa.Automation` | QA automation project referencing `Api` and `Data`; owns Playwright-based smoke and journey automation. |
+| `SystemUptimeTracker.Contracts` | Sole owner of `/api/v1` wire DTOs and payload models (decided by TASK-0102; created with the first DTOs under TASK-0202/TASK-0203). Has **no API and no EF Core dependency** — serialization annotations only — so API, portal tooling, and agents share contracts without sharing runtime implementation assemblies. DTOs are never duplicated into `Common`, `Api`, or `Data`. |
+| `SystemUptimeTracker.Contracts.UnitTests` | Golden JSON contract tests pinning wire field names, requiredness, nullability, enum strings, and duplicate-delivery response shapes. |
+
+Intended additions (added only when their first behavior is implemented, per
+TASK-0103):
+
+- `SystemUptimeTracker.Agent.Core` plus its unit-test project (EPIC-07).
+- `SystemUptimeTracker.WindowsService` (EPIC-09).
+- `SystemUptimeTracker.LinuxDaemon` (EPIC-10).
+- `SystemUptimeTracker.Power.Shelly` (EPIC-13).
+
+Toolchain baseline preserved by TASK-0104: .NET 10 (`net10.0`) with NUnit
+4.x + NSubstitute + coverlet for .NET tests, Microsoft.Playwright.NUnit and
+Aspire.Hosting.Testing for QA automation, and Next.js 16 / React 19 / Node 24
+with Vitest, Storybook, ESLint, and Zod for the web project. Upgrades require
+a separately approved change.
+
+No existing project is renamed by this inventory. The layout under
+[Proposed Solution Shape](#proposed-solution-shape) is the illustrative target
+for new projects, not a description of the current tree; where the two differ
+(for example `Web` versus `Portal`, or the single `Tests` project versus
+per-project test suites), the table above describes what exists and the target
+shape guides additions.
+
 ## Delivery Perspective
 
 Implementation should be reasoned about through two coupled delivery tracks.
@@ -199,7 +239,7 @@ The NodeJS management portal and the reporting devices share the same ASP.NET Co
 1. Owner creates a `DeviceAccount` (dedicated to one machine, or shared across several), choosing JWT, API key, or both as its allowed authentication methods.
 2. The resulting initial credential — a password for JWT-capable devices, or an API key for Basic Auth devices — is supplied out-of-band into the Windows Service or systemd daemon's local configuration at install time.
 3. On first run, a JWT-capable agent exchanges that initial credential once at the token endpoint for an access token and a refresh token.
-4. The agent persists the refresh token (or re-derives access tokens from it) and rotates its access token periodically thereafter, without resending the initial credential on every call. Whether the initial credential remains usable as a standing fallback or is invalidated after first use is an open question (see [product-scope.md](./product-scope.md)).
+4. The agent persists the refresh token (or re-derives access tokens from it) and rotates its access token periodically thereafter, without resending the initial credential on every call. Decided (TASK-0004): the initial credential is single-use — it is invalidated on the first successful login, and recovery from a lost or revoked refresh token is an owner-initiated credential rotation (see [product-scope.md](./product-scope.md#decisions)).
 5. A Basic Auth device instead sends its API key on every call; there is no rotation step unless the owner manually issues a new key.
 
 ### Machine Heartbeat Flow
@@ -214,7 +254,7 @@ The NodeJS management portal and the reporting devices share the same ASP.NET Co
 
 1. Agent polls a configured Shelly Plug US Gen4 over local HTTP RPC.
 2. Agent normalizes the Shelly response into a power-reading contract.
-3. Agent posts the power reading with its heartbeat or through a related endpoint (see the open question in [implementation-plan.md](./implementation-plan.md) on which transport wins).
+3. Agent posts the power reading to the dedicated `POST /api/v1/power-readings` endpoint. Decided (TASK-0007): power readings never travel inside heartbeat payloads, and every ingestion path normalizes into one canonical storage command (see [product-scope.md](./product-scope.md#decisions)).
 4. API stores the reading against the power meter and validates any machine relationship.
 
 ### Future Direct Shelly Flow
@@ -305,6 +345,63 @@ For the NodeJS portal, owner authentication should use the API's owner-account l
 - API keys are individually revocable and rotatable by the owning owner account without needing to touch the underlying Identity user.
 - Role/scope-based authorization is enforced the same way regardless of which of the two schemes authenticated the caller: device-scoped principals only ever reach ingestion endpoints.
 
+### Configuration And Environments
+
+Defined under TASK-0107 (2026-08-30) and binding for every component.
+
+- **Environment names:** `Development`, `Testing`, `Staging`, `Production`.
+  These are host environment names (`ASPNETCORE_ENVIRONMENT` /
+  `DOTNET_ENVIRONMENT`); `Debug`/`Release` are build configurations and must
+  never be used as environment names.
+- **Precedence (.NET components — API, AppHost, future agents/hosts):**
+  standard ASP.NET Core order, lowest to highest: `appsettings.json` →
+  `appsettings.{Environment}.json` → user secrets (Development only) →
+  environment variables → command-line arguments. Environment variables map
+  sections with double underscores (`ConnectionStrings__DefaultConnection`);
+  Azure Key Vault names map with double dashes
+  (`ConnectionStrings--DefaultConnection`).
+- **Web portal:** `.env.example` is the committed template; `.env.local`
+  holds developer values and is never committed. Only variables explicitly
+  prefixed for client exposure may reach the browser; everything else stays
+  server-side.
+- **Agents (planned):** the Windows Service and Linux daemon read non-secret
+  configuration from their installed application directory with
+  environment-variable overrides, and keep durable secret-bearing state only
+  in protected storage under the durable data root
+  (`C:\ProgramData\SystemUptimeTracker\Agent` on Windows; the systemd state
+  path on Linux — see TASK-0702/TASK-0706). Credentials are provisioned
+  out-of-band, never on installer command lines.
+- **No secrets in committed settings:** committed configuration carries
+  placeholders only (for example `Replace-Key-From-Secrets.json` in API
+  `appsettings.json` and `__SET_IN_USER_SECRETS_OR_ENV__` in AppHost
+  settings). Real values come from user secrets, environment variables, or a
+  secret store.
+- **Startup validation:** required non-development settings fail fast with
+  actionable errors. Existing enforcement: the API validates options with
+  data annotations and `ValidateOnStart()` and throws
+  `"ConnectionStrings:DefaultConnection must be configured."` when the
+  connection string is missing; AppHost throws
+  `"Missing required AppHost connection string…"` when neither user secrets
+  nor the environment supply it; QA automation refuses placeholder or
+  main-database connection strings. New components must follow the same
+  fail-fast pattern.
+
+### Test Ownership
+
+Defined under TASK-0108 (2026-08-30). Later epics must place tests in one of
+these owners rather than creating ad hoc test buckets.
+
+| Test type | Owns | Current project | Future projects |
+|---|---|---|---|
+| Unit | Pure rules with no I/O: session-transition calculator, queue/backoff policy, normalization, claims shaping, DTO validation | `SystemUptimeTracker.Tests` | `*.UnitTests` per new library (for example `SystemUptimeTracker.Agent.Core.UnitTests`, created with TASK-0701) |
+| Integration | SQL Server persistence and API boundaries: migrations, idempotency, authorization, ingestion | `SystemUptimeTracker.Tests` (SQL Server fixtures create and drop isolated databases; LocalDB by default, connection override via `SystemUptimeTracker__Tests__SqlServer__ConnectionString`) | `*.IntegrationTests` where a new library owns a boundary |
+| Functional | End-to-end workflows through public HTTP contracts and the portal UI (Aspire-hosted API + Playwright journeys) | `SystemUptimeTracker.Qa.Automation` | Extended by EPIC-05/EPIC-11/EPIC-13 journey tasks |
+| Packaging | Installed-service lifecycle on disposable hosts: install, upgrade, rollback, recovery, uninstall, retained state | None yet | Windows lifecycle automation (TASK-0909, plus Pester installer tests under TASK-0903) and Ubuntu lifecycle automation (TASK-1007) |
+
+A successful compile is never packaging evidence; packaging suites run on
+disposable target operating systems per the Gate 2 checklist in
+[delivery-backlog.md](./delivery-backlog.md#release-gates).
+
 ### Security
 
 - No trusted client-supplied server timestamps.
@@ -313,8 +410,8 @@ For the NodeJS portal, owner authentication should use the API's owner-account l
 
 ### Reliability
 
-- Local retry queue for agents. [inital-spec.md](./inital-spec.md) recommends a SQLite-backed queue with a maximum age of 7 days, a maximum size of 100 MB, and a retry backoff progression of 15s, 30s, 1m, 5m, 15m; these defaults have not yet been formally accepted (see the open question in [implementation-plan.md](./implementation-plan.md)).
-- Gap-based runtime-session logic for missed heartbeats, using a default heartbeat interval of 60 seconds, an offline threshold of 3 minutes, and a session-break threshold of 5 minutes as illustrative starting points from the original design conversation. These thresholds should be confirmed and made configurable per machine before Phase 1 exit.
+- Local retry queue for agents. Decided (TASK-0006): the [inital-spec.md](./inital-spec.md) proposal is adopted as-is — a SQLite-backed queue with a maximum age of 7 days, a maximum size of 100 MB, a jittered retry backoff progression of 15s, 30s, 1m, 5m, 15m, deterministic oldest-first eviction on overflow, and a dead-letter policy for terminal failures. See [product-scope.md](./product-scope.md#decisions).
+- Gap-based runtime-session logic for missed heartbeats. Decided (TASK-0005): default heartbeat interval 60 seconds, offline threshold 3 minutes, session-break threshold 5 minutes, clock-skew tolerance 5 minutes, detailed-telemetry interval 15 minutes. Values, units, valid ranges, and configuration scope (including per-machine overrides for the server-side thresholds) are recorded in [product-scope.md](./product-scope.md#decisions).
 - Health endpoints for API and database dependencies.
 
 ### Observability

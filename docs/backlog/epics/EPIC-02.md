@@ -2,7 +2,7 @@
 id: EPIC-02
 title: 'Versioned Contracts'
 type: epic
-status: not-started
+status: in-progress
 release_gate: 'Gate 0'
 depends_on: 'EPIC-00'
 ---
@@ -60,17 +60,25 @@ task file to follow every concrete predecessor link.
 
 ## Tasks
 
-| Task | Objective | Depends on | Initial status |
+| Task | Objective | Depends on | Status |
 |---|---|---|---|
-| [TASK-0201](../tasks/TASK-0201.md) | Create `docs/api-contracts.md` with the complete `/api/v1` route catalog, caller type, authorization policy, status codes, and idempotency behavior | [TASK-0001](../tasks/TASK-0001.md), [TASK-0002](../tasks/TASK-0002.md), [TASK-0003](../tasks/TASK-0003.md), [TASK-0004](../tasks/TASK-0004.md) | Not started |
-| [TASK-0202](../tasks/TASK-0202.md) | Define machine registration request/response DTOs, durable `AgentId`, registration status, assigned `MachineId`, and conflict behavior | [TASK-0102](../tasks/TASK-0102.md) | Not started |
-| [TASK-0203](../tasks/TASK-0203.md) | Define heartbeat DTOs for machine metadata, sequence number, sent time, agent start, boot time, CPU, memory, and storage | [TASK-0005](../tasks/TASK-0005.md), [TASK-0102](../tasks/TASK-0102.md) | Not started |
-| [TASK-0204](../tasks/TASK-0204.md) | Define owner login, device login, refresh, revoke, and API-key issue/rotate responses without exposing stored secrets | [TASK-0004](../tasks/TASK-0004.md), [TASK-0102](../tasks/TASK-0102.md) | Not started |
-| [TASK-0205](../tasks/TASK-0205.md) | Define owner read and administration contracts for device accounts, machines, sessions, and telemetry with bounded pagination and filtering | [TASK-0002](../tasks/TASK-0002.md), [TASK-0102](../tasks/TASK-0102.md) | Not started |
-| [TASK-0206](../tasks/TASK-0206.md) | Define power-meter registration, power reading, location, monitored-device, and effective-dated association contracts | [TASK-0007](../tasks/TASK-0007.md), [TASK-0102](../tasks/TASK-0102.md) | Not started |
-| [TASK-0207](../tasks/TASK-0207.md) | Define idempotency keys: `AgentId + SequenceNumber` for heartbeats and meter identity plus `MessageId` for readings | [TASK-0202](../tasks/TASK-0202.md), [TASK-0203](../tasks/TASK-0203.md), [TASK-0206](../tasks/TASK-0206.md) | Not started |
-| [TASK-0208](../tasks/TASK-0208.md) | Standardize validation errors on Problem Details, correlation headers, UTC timestamp format, numeric units, and unsupported payload-version responses | [TASK-0201](../tasks/TASK-0201.md) | Not started |
-| [TASK-0209](../tasks/TASK-0209.md) | Generate or maintain the API OpenAPI document, executable HTTP examples, and portal-consumable typed or Zod validators for the accepted v1 surface | [TASK-0202](../tasks/TASK-0202.md), [TASK-0203](../tasks/TASK-0203.md), [TASK-0204](../tasks/TASK-0204.md), [TASK-0205](../tasks/TASK-0205.md), [TASK-0206](../tasks/TASK-0206.md), [TASK-0207](../tasks/TASK-0207.md), [TASK-0208](../tasks/TASK-0208.md) | Not started |
+| [TASK-0201](../tasks/TASK-0201.md) | Create `docs/api-contracts.md` with the complete `/api/v1` route catalog, caller type, authorization policy, status codes, and idempotency behavior | [TASK-0001](../tasks/TASK-0001.md), [TASK-0002](../tasks/TASK-0002.md), [TASK-0003](../tasks/TASK-0003.md), [TASK-0004](../tasks/TASK-0004.md) | Done |
+| [TASK-0202](../tasks/TASK-0202.md) | Define machine registration request/response DTOs, durable `AgentId`, registration status, assigned `MachineId`, and conflict behavior | [TASK-0102](../tasks/TASK-0102.md) | Done |
+| [TASK-0203](../tasks/TASK-0203.md) | Define heartbeat DTOs for machine metadata, sequence number, sent time, agent start, boot time, CPU, memory, and storage | [TASK-0005](../tasks/TASK-0005.md), [TASK-0102](../tasks/TASK-0102.md) | Done |
+| [TASK-0204](../tasks/TASK-0204.md) | Define owner login, device login, refresh, revoke, and API-key issue/rotate responses without exposing stored secrets | [TASK-0004](../tasks/TASK-0004.md), [TASK-0102](../tasks/TASK-0102.md) | Done |
+| [TASK-0205](../tasks/TASK-0205.md) | Define owner read and administration contracts for device accounts, machines, sessions, and telemetry with bounded pagination and filtering | [TASK-0002](../tasks/TASK-0002.md), [TASK-0102](../tasks/TASK-0102.md) | Done |
+| [TASK-0206](../tasks/TASK-0206.md) | Define power-meter registration, power reading, location, monitored-device, and effective-dated association contracts | [TASK-0007](../tasks/TASK-0007.md), [TASK-0102](../tasks/TASK-0102.md) | Done |
+| [TASK-0207](../tasks/TASK-0207.md) | Define idempotency keys: `AgentId + SequenceNumber` for heartbeats and meter identity plus `MessageId` for readings | [TASK-0202](../tasks/TASK-0202.md), [TASK-0203](../tasks/TASK-0203.md), [TASK-0206](../tasks/TASK-0206.md) | Done |
+| [TASK-0208](../tasks/TASK-0208.md) | Standardize validation errors on Problem Details, correlation headers, UTC timestamp format, numeric units, and unsupported payload-version responses | [TASK-0201](../tasks/TASK-0201.md) | Done |
+| [TASK-0209](../tasks/TASK-0209.md) | Generate or maintain the API OpenAPI document, executable HTTP examples, and portal-consumable typed or Zod validators for the accepted v1 surface | [TASK-0202](../tasks/TASK-0202.md), [TASK-0203](../tasks/TASK-0203.md), [TASK-0204](../tasks/TASK-0204.md), [TASK-0205](../tasks/TASK-0205.md), [TASK-0206](../tasks/TASK-0206.md), [TASK-0207](../tasks/TASK-0207.md), [TASK-0208](../tasks/TASK-0208.md) | In progress |
+
+Status note (2026-08-31): TASK-0201 through TASK-0208 are done —
+`docs/api-contracts.md`, the `SystemUptimeTracker.Contracts` and
+`SystemUptimeTracker.Contracts.UnitTests` projects (66/66 contract tests
+passing), the error/correlation contract, executable `.http` examples, and
+portal Zod validators (web suite 118 passed). TASK-0209 remains in progress:
+the generated-OpenAPI compatibility check becomes actionable once the first
+v1 endpoints exist (see the task file).
 
 ## Execution Guidance
 
