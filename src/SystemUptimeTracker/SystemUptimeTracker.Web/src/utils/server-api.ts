@@ -275,6 +275,12 @@ const getImpersonationValue = async (
   url: string,
   method: string,
 ) => {
+  // cookies().get(undefined) throws in Next 16.3+, so bail out when
+  // impersonation is not configured for this environment.
+  if (!impersonateCookie) {
+    return undefined;
+  }
+
   const myCookies = await cookies();
   const cookie = myCookies.get(impersonateCookie);
   const cookieValue = cookie?.value;

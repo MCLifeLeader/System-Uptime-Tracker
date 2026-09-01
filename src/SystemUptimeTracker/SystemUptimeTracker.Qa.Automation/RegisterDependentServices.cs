@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SystemUptimeTracker.Api.Services.Identity;
 using SystemUptimeTracker.Data.Identity;
 using SystemUptimeTracker.Qa.Automation.Configuration;
@@ -18,10 +19,8 @@ namespace SystemUptimeTracker.Qa.Automation;
 
 public static class RegisterDependentServices
 {
-    private const string SHARED_QA_DATABASE_CONNECTION_STRING_NAME = "SharedQaDatabase";
-    private const string SHARED_QA_DATABASE_PLACEHOLDER = "__SET_IN_USER_SECRETS_OR_ENV__";
+    private const string DEFAULT_CONNECTION_PLACEHOLDER = "Replace-Key-From-Secrets.json";
     private const string MAIN_APPLICATION_DATABASE_NAME = "SystemUptimeTracker";
-    private const string DEFAULT_LOCAL_QA_DATABASE_CONNECTION_STRING = "Server=127.0.0.1,10433;Database=SystemUptimeTracker_QaAutomation;User Id=sa;Password=P@ssword123!;Encrypt=True;MultipleActiveResultSets=true;TrustServerCertificate=True";
 
     public static IServiceCollection RegisterQaAutomationServices(
         this IServiceCollection services,
@@ -39,9 +38,9 @@ public static class RegisterDependentServices
             builder.AddConsole();
         });
 
-        RegisterOptions(services);
+        RegisterOptions(services, configuration);
         RegisterFrameworkServices(services);
-        RegisterIdentityAutomationServices(services, configuration);
+        RegisterIdentityAutomationServices(services);
         RegisterApplicationServices(services);
         RegisterPageObjects(services);
 
@@ -54,30 +53,31 @@ public static class RegisterDependentServices
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
             .AddJsonFile($"appsettings.{environmentName}.json", optional: true, reloadOnChange: false)
-            .AddUserSecrets(Assembly.GetExecutingAssembly(), optional: true)
             .AddUserSecrets(typeof(SystemUptimeTracker.Api.RegisterDependentServices).Assembly, optional: true)
+            .AddUserSecrets(Assembly.GetExecutingAssembly(), optional: true)
             .AddEnvironmentVariables()
             .Build();
     }
 
-    private static void RegisterOptions(IServiceCollection services)
+    internal static void RegisterOptions(IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<AutomationAppSettings>()
-            .Configure<IConfiguration>((options, configuration) =>
-                configuration.GetSection("AppSettings").Bind(options))
+            .Bind(configuration.GetSection("AppSettings"))
             .ValidateOnStart();
 
         services.AddOptions<QaAutomationExecutionOptions>()
-            .Configure<IConfiguration>((options, configuration) =>
-                configuration.GetSection(QaAutomationExecutionOptions.SECTION_NAME).Bind(options))
+            .Bind(configuration.GetSection(QaAutomationExecutionOptions.SECTION_NAME))
             .Validate(
                 options => !options.UseExternalHost || !string.IsNullOrWhiteSpace(options.WebBaseUrl),
                 "QaAutomation:WebBaseUrl is required when QaAutomation:UseExternalHost is true.")
             .ValidateOnStart();
 
+        services.AddOptions<ConnectionStringsOptions>()
+            .Bind(configuration.GetSection(ConnectionStringsOptions.SECTION_NAME))
+            .ValidateOnStart();
+
         services.AddOptions<SystemUptimeTrackerWebValidationOptions>()
-            .Configure<IConfiguration>((options, configuration) =>
-                configuration.GetSection(SystemUptimeTrackerWebValidationOptions.SECTION_NAME).Bind(options))
+            .Bind(configuration.GetSection(SystemUptimeTrackerWebValidationOptions.SECTION_NAME))
             .ValidateDataAnnotations()
             .Validate(
                 options => !string.IsNullOrWhiteSpace(options.BaseUrl),
@@ -94,12 +94,18 @@ public static class RegisterDependentServices
         services.AddSingleton<IPageObjectFactory, PageObjectFactory>();
     }
 
-    private static void RegisterIdentityAutomationServices(IServiceCollection services, IConfiguration configuration)
+    private static void RegisterIdentityAutomationServices(IServiceCollection services)
     {
-        string connectionString = ResolveRuntimeAutomationDatabaseConnectionString(configuration);
-
-        services.AddDbContext<ApplicationDbContext>(options =>
+        services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
         {
+            ConnectionStringsOptions connectionStrings =
+                serviceProvider.GetRequiredService<IOptions<ConnectionStringsOptions>>().Value;
+            QaAutomationExecutionOptions qaAutomation =
+                serviceProvider.GetRequiredService<IOptions<QaAutomationExecutionOptions>>().Value;
+            string connectionString = ResolveRuntimeAutomationDatabaseConnectionString(
+                connectionStrings,
+                qaAutomation);
+
             options.UseSqlServer(connectionString);
         });
 
@@ -127,12 +133,20 @@ public static class RegisterDependentServices
         services.AddScoped<SignInManager<ApplicationUser>, ApplicationSignInManager>();
     }
 
-    private static string ResolveRuntimeAutomationDatabaseConnectionString(IConfiguration configuration)
+    internal static string ResolveRuntimeAutomationDatabaseConnectionString(
+        ConnectionStringsOptions connectionStrings,
+        QaAutomationExecutionOptions qaAutomation)
     {
-        string? applicationConnectionString = configuration.GetConnectionString("DefaultConnection");
-        return !string.IsNullOrWhiteSpace(applicationConnectionString)
-            ? applicationConnectionString
-            : ResolveQaDatabaseConnectionString(configuration);
+        string applicationConnectionString = connectionStrings.DefaultConnection;
+        if (string.IsNullOrWhiteSpace(applicationConnectionString) ||
+            string.Equals(applicationConnectionString, DEFAULT_CONNECTION_PLACEHOLDER, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "ConnectionStrings:DefaultConnection must be configured for QA automation using user secrets or an environment variable.");
+        }
+
+        ValidateQaDatabaseIsolation(qaAutomation, applicationConnectionString);
+        return applicationConnectionString;
     }
 
     private static void RegisterApplicationServices(IServiceCollection services)
@@ -144,33 +158,11 @@ public static class RegisterDependentServices
         services.AddScoped<ITestIdentityAccountProvisioningService, TestIdentityAccountProvisioningService>();
     }
 
-    internal static string ResolveQaDatabaseConnectionString(string environmentName)
-    {
-        IConfiguration configuration = RegisterConfiguration(environmentName);
-        return ResolveQaDatabaseConnectionString(configuration);
-    }
-
-    internal static string ResolveQaDatabaseConnectionString(IConfiguration configuration)
-    {
-        string configuredConnectionString = configuration.GetConnectionString(SHARED_QA_DATABASE_CONNECTION_STRING_NAME) ?? string.Empty;
-        string resolvedConnectionString = string.IsNullOrWhiteSpace(configuredConnectionString) ||
-               string.Equals(configuredConnectionString, SHARED_QA_DATABASE_PLACEHOLDER, StringComparison.OrdinalIgnoreCase)
-            ? DEFAULT_LOCAL_QA_DATABASE_CONNECTION_STRING
-            : configuredConnectionString;
-
-        ValidateQaDatabaseIsolation(configuration, resolvedConnectionString);
-
-        return resolvedConnectionString;
-    }
-
     private static void ValidateQaDatabaseIsolation(
-        IConfiguration configuration,
+        QaAutomationExecutionOptions qaAutomation,
         string connectionString)
     {
-        bool allowMainDatabase = configuration.GetValue<bool>(
-            $"{QaAutomationExecutionOptions.SECTION_NAME}:{nameof(QaAutomationExecutionOptions.AllowMainDatabase)}");
-
-        if (allowMainDatabase)
+        if (qaAutomation.AllowMainDatabase)
         {
             return;
         }
@@ -187,8 +179,8 @@ public static class RegisterDependentServices
 
         throw new InvalidOperationException(
             "QA automation must not run against the main SystemUptimeTracker database. " +
-            "Set ConnectionStrings:SharedQaDatabase to a dedicated QA database such as SystemUptimeTracker_QaAutomation. " +
-            "Only set QaAutomation:AllowMainDatabase=true for deliberate local cleanup or debugging.");
+            "Set ConnectionStrings:DefaultConnection to a dedicated QA database, or " +
+            "set QaAutomation:AllowMainDatabase=true for deliberate local cleanup or debugging.");
     }
 
     private static void RegisterPageObjects(IServiceCollection services)

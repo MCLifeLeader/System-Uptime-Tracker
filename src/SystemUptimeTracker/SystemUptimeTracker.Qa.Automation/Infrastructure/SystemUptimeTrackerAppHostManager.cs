@@ -63,6 +63,7 @@ internal static class SystemUptimeTrackerAppHostManager
         "net::ERR_"
     ];
     private static Process? _appHostProcess;
+    private static string? _activeConnectionString;
     private static int _usageCount;
     private static bool _isReady;
     private static SystemUptimeTrackerAppHostReadinessScope _readyScope;
@@ -156,14 +157,31 @@ internal static class SystemUptimeTrackerAppHostManager
         ];
     }
 
-    internal static void Acquire(SystemUptimeTrackerAppHostReadinessScope readinessScope = SystemUptimeTrackerAppHostReadinessScope.SERVER_AND_CLIENT)
+    internal static void Acquire(
+        string connectionString,
+        SystemUptimeTrackerAppHostReadinessScope readinessScope = SystemUptimeTrackerAppHostReadinessScope.SERVER_AND_CLIENT)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         EnsureCleanupHooksRegistered();
 
         bool startNewProcess = false;
 
         lock (_syncLock)
         {
+            // A running AppHost is bound to the connection string it was
+            // launched with; silently reusing it for a fixture that resolved
+            // a different database would run assertions against one database
+            // while cleanup resets another.
+            if (_appHostProcess is { HasExited: false }
+                && _activeConnectionString is not null
+                && !string.Equals(_activeConnectionString, connectionString, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "The shared SystemUptimeTracker AppHost is already running with a different " +
+                    "ConnectionStrings:DefaultConnection value. Fixtures in one test process must resolve " +
+                    "the same automation database, or the running AppHost must be released before switching.");
+            }
+
             if (_isReady
                 && _appHostProcess is { HasExited: false }
                 && ReadinessScopeSatisfies(_readyScope, readinessScope))
@@ -204,8 +222,6 @@ internal static class SystemUptimeTrackerAppHostManager
                 Directory.CreateDirectory(_appHostTempPath);
                 WriteAppHostTempOwnerMarker(_appHostTempPath, Environment.ProcessId);
 
-                string resolvedQaConnectionString = RegisterDependentServices.ResolveQaDatabaseConnectionString(SystemUptimeTrackerTestEnvironment.Resolve());
-
                 var startInfo = new ProcessStartInfo("dotnet")
                 {
                     WorkingDirectory = _repoRoot,
@@ -222,7 +238,7 @@ internal static class SystemUptimeTrackerAppHostManager
                 startInfo.ArgumentList.Add("Debug");
                 startInfo.ArgumentList.Add("--no-launch-profile");
                 startInfo.ArgumentList.Add("--");
-                startInfo.ArgumentList.Add($"--ConnectionStrings:DefaultConnection={resolvedQaConnectionString}");
+                startInfo.ArgumentList.Add($"--ConnectionStrings:DefaultConnection={connectionString}");
 
                 startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
                 startInfo.Environment["DOTNET_ENVIRONMENT"] = "Development";
@@ -233,7 +249,7 @@ internal static class SystemUptimeTrackerAppHostManager
                 startInfo.Environment["ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL"] =
                     string.Create(CultureInfo.InvariantCulture, $"http://localhost:{GetAspireDashboardOtlpHttpPort()}");
                 startInfo.Environment["ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS"] = "true";
-                startInfo.Environment[DEFAULT_CONNECTION_ENVIRONMENT_VARIABLE] = resolvedQaConnectionString;
+                startInfo.Environment[DEFAULT_CONNECTION_ENVIRONMENT_VARIABLE] = connectionString;
                 startInfo.Environment["TMP"] = _appHostTempPath;
                 startInfo.Environment["TEMP"] = _appHostTempPath;
 
@@ -246,6 +262,7 @@ internal static class SystemUptimeTrackerAppHostManager
                 _startupAttemptUtc = DateTime.UtcNow;
                 _lastProgressUtc = DateTime.UtcNow;
                 _usageCount = 1;
+                _activeConnectionString = connectionString;
                 _readyScope = SystemUptimeTrackerAppHostReadinessScope.DASHBOARD_ONLY;
             }
         }
@@ -304,6 +321,7 @@ internal static class SystemUptimeTrackerAppHostManager
 
             _appHostProcess = null;
             _appHostTempPath = null;
+            _activeConnectionString = null;
             _usageCount = 0;
             _isReady = false;
             _readyScope = SystemUptimeTrackerAppHostReadinessScope.DASHBOARD_ONLY;

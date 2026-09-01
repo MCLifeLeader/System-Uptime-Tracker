@@ -61,6 +61,61 @@ For larger changes, add a body explaining why the change was made and any migrat
 
 Conventional Commits are welcome but not strictly required. If you use them, a short subject line and optional body are sufficient.
 
+## Baseline validation commands
+
+These are the canonical commands for validating the repository (established
+under TASK-0105; release gates in
+[docs/delivery-backlog.md](docs/delivery-backlog.md#release-gates) reference
+them). Run them from the repository root unless noted. A clean checkout needs
+only the documented environment setup in
+[README.md](README.md#development-environment-setup) first.
+
+### .NET (solution)
+
+```powershell
+dotnet restore SystemUptimeTracker.sln
+dotnet build SystemUptimeTracker.sln
+dotnet test src/SystemUptimeTracker/SystemUptimeTracker.Tests/SystemUptimeTracker.Tests.csproj
+```
+
+Notes:
+
+- The SQL Server integration tests in `SystemUptimeTracker.Tests` default to
+  `(localdb)\MSSQLLocalDB` on Windows. To target another SQL Server (for
+  example the Docker container from `docker_setup.ps1`), set the
+  `SystemUptimeTracker__Tests__SqlServer__ConnectionString` environment
+  variable to a `master`-database connection string; each test creates and
+  drops its own isolated database.
+
+### Web (portal)
+
+```powershell
+cd src/SystemUptimeTracker/SystemUptimeTracker.Web
+npm ci            # first time or after dependency changes
+npm run lint      # ESLint
+npm run test      # Vitest
+npm run verify    # lint + test in one step
+npm run build     # Next.js production build
+```
+
+### QA smoke (API + portal journeys)
+
+```powershell
+dotnet test src/SystemUptimeTracker/SystemUptimeTracker.Qa.Automation/SystemUptimeTracker.Qa.Automation.csproj
+```
+
+Prerequisites (each failure is reported with an actionable error):
+
+- `ConnectionStrings:DefaultConnection` must be configured through user
+  secrets or the `ConnectionStrings__DefaultConnection` environment variable,
+  pointing at a disposable automation database. The suite refuses to run
+  against the main application database unless explicitly allowed by its
+  `QaAutomation` options.
+- Playwright browsers must be installed once after the first build:
+  `pwsh src/SystemUptimeTracker/SystemUptimeTracker.Qa.Automation/bin/Debug/net10.0/playwright.ps1 install`
+- Never commit secrets or real connection strings; user secrets and
+  environment variables only.
+
 ## Code style and tests
 
 - Keep styles consistent with nearby files.

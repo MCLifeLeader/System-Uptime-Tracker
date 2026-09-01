@@ -8,6 +8,8 @@ namespace SystemUptimeTracker.Qa.Automation.Pages;
 
 public sealed class LoginPage : SystemUptimeTrackerPageBase<LoginPage>
 {
+    private readonly float _pageLoadTimeoutMilliseconds;
+
     public override string PageTitle { get; protected set; }
     public override string PageUrl { get; protected set; }
 
@@ -15,9 +17,11 @@ public sealed class LoginPage : SystemUptimeTrackerPageBase<LoginPage>
         IPage page,
         IPageObjectFactory pageObjectFactory,
         ISystemUptimeTrackerPageCatalog pageCatalog,
+        IPlaywrightBrowserEnvironment browserEnvironment,
         ILogger<LoginPage> logger)
         : base(page, pageObjectFactory, logger)
     {
+        _pageLoadTimeoutMilliseconds = browserEnvironment.BrowserConfiguration.PageLoadTimeoutInSeconds * 1000;
         PageTitle = pageCatalog.GetPageTitle("Login", "Sign in");
         PageUrl = pageCatalog.GetPageUrl("Login", "https://localhost:3001/auth/login");
         LogResolvedPageConfiguration();
@@ -94,7 +98,10 @@ public sealed class LoginPage : SystemUptimeTrackerPageBase<LoginPage>
 
         LogAction("EnterPassword", "PasswordInput");
         await PasswordInput.FillAsync(password);
-        await SignInButton.ClickAsync();
+        await SignInButton.ClickAsync(new LocatorClickOptions
+        {
+            Timeout = _pageLoadTimeoutMilliseconds,
+        });
 
         if (await StaySignedInNoButton.CountAsync() > 0)
         {

@@ -4,6 +4,20 @@
 
 Deliver the first usable version in staged increments, starting with computer uptime monitoring and leaving room for optional Shelly-based power telemetry without redesigning the core architecture.
 
+## Execution Backlog
+
+The phase descriptions in this document define release intent. The canonical,
+task-level execution order is maintained in the
+[split delivery backlog](./backlog/README.md), which assigns stable epic and
+task IDs, explicit predecessors, acceptance evidence, parallel work lanes, and
+release gates. The [execution tree](./backlog/dependency-tree.md) lists every
+task in topological scheduling waves.
+
+When sequencing work, use the dependency tree in that backlog rather than the
+phase number alone. A later-phase task may begin early when all of its declared
+dependencies are complete, while no task may begin merely because its phase is
+listed next.
+
 ## Delivery Strategy
 
 Use phased implementation so the system becomes useful early:
@@ -39,27 +53,6 @@ The backend lane should lead whenever a frontend workflow depends on new API,
 schema, or authorization behavior. The frontend lane should follow closely
 enough that owner-facing usability is validated against the real API contract,
 not against placeholders.
-
-## Execution Story Alignment
-
-The phase-level plan in this document is implemented in detail by the July 2026
-story set under [stories/2026/07/README.md](./stories/2026/07/README.md).
-
-That story set currently sequences work as:
-
-1. solution topology alignment
-2. API v1 and auth contract baseline
-3. identity and persistence foundation
-4. shared contracts and agent core
-5. heartbeat ingestion and runtime sessions
-6. owner administrative, query, and portal MVP work on the shared API surface
-7. Windows service host
-8. Linux daemon host
-9. operations, observability, and deployment hardening
-10. power-meter domain and API-key authentication
-11. Shelly polling and power ingestion
-12. location, association, and portal power workflows
-13. reporting and extended-ingestion readiness
 
 ## Phase 0: Architecture Baseline
 
@@ -149,7 +142,23 @@ Make the monitoring system operationally deployable across target environments.
 
 #### Phase 2 Backend, Host, And Operations Work Items
 
-- Add Windows Service installation guidance and packaging.
+- Implement Windows Service hosting, publishing, and lifecycle behavior using
+  [windows-service-reference.md](./windows-service-reference.md) as the concrete
+  design baseline.
+- Publish a self-contained, single-file `win-x64` artifact containing the
+  executable, non-secret configuration template, operator README, and named
+  PowerShell install and uninstall entry points.
+- Implement idempotent first-install and upgrade behavior with validated named
+  parameters, elevation checks, bounded service-state waits, versioned release
+  staging, checked native-command results, startup validation, and rollback.
+- Configure the `SystemUptimeTrackerAgent` service for automatic startup,
+  restart-on-failure recovery, and the explicit least-privilege service
+  identity and ACL contract defined by the architecture.
+- Keep application releases under `Program Files` separate from durable
+  identity, retry, and diagnostic state under `ProgramData`; retain durable
+  state on uninstall unless an explicit purge is requested.
+- Add a disposable Windows packaging test covering install, repeat install,
+  upgrade, failed-upgrade rollback, start, stop, uninstall, and state retention.
 - Add systemd unit definition and installation guidance.
 - Define local configuration model for production deployment.
 - Finalize filesystem locations for state, logs, and retry queue storage.
@@ -168,7 +177,9 @@ Make the monitoring system operationally deployable across target environments.
 
 ### Phase 2 Exit Criteria
 
-- The Windows agent is installable as a service.
+- The Windows agent artifact supports tested install, repeat install, upgrade,
+  failed-start rollback, uninstall, automatic startup, recovery configuration,
+  clean shutdown, and durable-state retention behavior.
 - The Ubuntu agent is installable as a systemd-managed daemon.
 - The NodeJS portal can be deployed and connected to the shared API.
 - API, portal, and agents expose enough health and logs for first-line troubleshooting.
@@ -288,7 +299,8 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 ## Deployment And Operations
 
 - Publishing profiles.
-- Service installation scripts or instructions.
+- Artifact-contained Windows install and uninstall scripts plus the operator
+  runbook defined in [windows-service-reference.md](./windows-service-reference.md).
 - Configuration handling.
 - Health checks and diagnostics.
 - Portal deployment, origin strategy, and secure session behavior.
@@ -299,25 +311,31 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 - `*.IntegrationTests` projects for heartbeat ingestion and power-meter association rules.
 - `*.FunctionalTests` projects for end-to-end API and agent workflow verification where needed.
 - Portal unit, integration, and functional tests for owner login, device-account management, and core data-view workflows.
-- Packaging smoke tests for Windows and Ubuntu deployment paths.
+- Packaging smoke tests for Windows and Ubuntu deployment paths, including the
+  complete Windows service lifecycle on a disposable Windows environment.
 - Thin Windows Service and Linux daemon host projects should default to shared-core coverage plus integration and packaging checks unless platform-specific logic grows large enough to justify dedicated test projects.
 
 ## Recommended Implementation Sequence
 
-1. Align the current solution topology to the documented target architecture.
-2. Freeze the API, authentication, and portal-integration contract.
-3. Build the identity and persistence foundation.
-4. Build shared contracts and the shared agent runtime.
-5. Deliver heartbeat ingestion and runtime-session reconstruction.
-6. Deliver the first owner administrative, machine-read, and portal MVP flows
-  on the shared API surface.
-7. Add the Windows service host.
-8. Add the Linux daemon host.
-9. Harden operations, observability, and deployment.
-10. Add independent power-meter registration and API-key authentication.
-11. Add Shelly polling and normalized power ingestion.
-12. Add location, association, and portal power workflows.
-13. Add reporting and extended-ingestion readiness work.
+The executable sequence is the
+[task dependency tree](./backlog/dependency-tree.md). Its critical path is
+summarized in [delivery-backlog.md](./delivery-backlog.md):
+
+### Epic-Level Critical Path
+
+1. Close product decisions and define release evidence (`EPIC-00`).
+2. Align the solution and freeze versioned contracts (`EPIC-01`, `EPIC-02`).
+3. Implement persistence and least-privilege identity in parallel (`EPIC-03`,
+  `EPIC-04`).
+4. Complete machine registration and heartbeat ingestion (`EPIC-05`).
+5. Build runtime sessions, the agent core, and the owner portal on the stable
+  heartbeat path (`EPIC-06`, `EPIC-07`, `EPIC-11`).
+6. Add durable retry and offline recovery (`EPIC-08`).
+7. Package Windows and Ubuntu agents in parallel (`EPIC-09`, `EPIC-10`).
+8. Add independent power persistence, then Shelly collection and associations
+  (`EPIC-12`, `EPIC-13`).
+9. Complete operational release readiness (`EPIC-14`).
+10. Add approved reporting and alternate-ingestion capabilities (`EPIC-15`).
 
 ## Major Risks
 
@@ -332,21 +350,24 @@ Prepare for scale, alternate telemetry paths, and operator workflows.
 ## Open Technical Questions
 
 - Will SQL Server be available locally through containers for everyday development and tests?
-- Should the retry queue start in SQLite or in a simpler file-based format? [inital-spec.md](./inital-spec.md) already recommends a SQLite-backed queue with a 7-day/100 MB cap and a 15s/30s/1m/5m/15m backoff progression — this question is whether to adopt that recommendation as-is or revisit it, not whether to start from a blank slate.
-- Is the first agent registration flow self-service, pre-provisioned, or approval-based?
-- Should power readings travel inside heartbeat payloads, through separate endpoints, or both?
 - What minimum owner-facing administrative and data-read API surface is required for the first management-portal release?
 - Should the NodeJS portal act purely as a server-rendered/BFF-style client to the API, or is direct browser-to-API access acceptable for selected read operations?
-- What are the accepted default values for heartbeat interval, offline threshold, and session-break threshold? [inital-spec.md](./inital-spec.md) proposes 60 seconds, 3 minutes, and 5 minutes respectively as illustrative starting points; [architecture-overview.md](./architecture-overview.md) repeats them but they are not yet a confirmed decision.
-- No document yet enumerates the concrete API routes, request/response payloads, and token endpoint contract (login/refresh request and response shapes, JWT claims such as `AgentId`/`MachineId`, access-token lifetime, Basic Auth header format) as an accepted contract — today these only exist as examples inside the raw [inital-spec.md](./inital-spec.md) transcript, and that transcript predates the Owner/DeviceAccount/JWT/Basic-Auth decision entirely. A dedicated API contracts document (or an addition to this plan) should be produced before or during Phase 1 so the API and agent implementations build against the same accepted shapes.
-- Should device accounts be provisioned one-per-machine by default, or is a shared account the default with dedicated per-device accounts as an opt-in? (See [product-scope.md](./product-scope.md).)
-- Is more than one owner account expected in the first release, and if so, must each owner's devices/data be isolated from other owners'? (See [product-scope.md](./product-scope.md).)
-- Is the initial device-account credential single-use (invalidated after the first JWT login) or a standing fallback credential? (See [product-scope.md](./product-scope.md).)
+- No document yet enumerates the concrete API routes, request/response payloads, and token endpoint contract (login/refresh request and response shapes, JWT claims such as `AgentId`/`MachineId`, access-token lifetime, Basic Auth header format) as an accepted contract — today these only exist as examples inside the raw [inital-spec.md](./inital-spec.md) transcript, and that transcript predates the Owner/DeviceAccount/JWT/Basic-Auth decision entirely. A dedicated API contracts document (`docs/api-contracts.md`, owned by TASK-0201) must be produced before or during Phase 1 so the API and agent implementations build against the same accepted shapes.
+
+Resolved on 2026-08-30 under EPIC-00 (details in [product-scope.md](./product-scope.md#decisions)):
+
+- Retry queue (TASK-0006): SQLite-backed, 7-day/100 MB caps, jittered 15s/30s/1m/5m/15m backoff, oldest-first eviction, dead-letter policy — adopted as proposed.
+- Registration flow (TASK-0001): self-service and auto-approved, gated by owner-provisioned device-account credentials; no approval workflow in the first release.
+- Power readings (TASK-0007): separate `POST /api/v1/power-readings` endpoint with one canonical storage command; never combined into heartbeat payloads.
+- Telemetry timing defaults (TASK-0005): heartbeat 60 s, offline threshold 180 s, session break 300 s, clock-skew tolerance 300 s, detailed telemetry 900 s, with documented ranges and configuration scope.
+- Device-account default (TASK-0003): one dedicated account per machine by default; shared account remains an owner opt-in.
+- Owner model (TASK-0002): multiple owners in a single trust domain; no per-owner data isolation.
+- Bootstrap credential (TASK-0004): single-use for JWT accounts, invalidated on first successful login; API-key accounts keep a standing revocable key by design.
 
 ## Definition Of Ready For Implementation
 
 - Project naming and solution structure are agreed.
-- Initial authentication approach is selected: ASP.NET Core Identity local accounts, an `Owner`/`DeviceAccount` ownership model, JWT bearer tokens as the primary scheme, and HTTP Basic Auth with a hashed API key as a fallback for devices that cannot rotate JWTs (decided; see [product-scope.md](./product-scope.md)). The concrete token endpoint contract and default account-provisioning policy remain open — see the questions above.
+- Initial authentication approach is selected: ASP.NET Core Identity local accounts, an `Owner`/`DeviceAccount` ownership model, JWT bearer tokens as the primary scheme, and HTTP Basic Auth with a hashed API key as a fallback for devices that cannot rotate JWTs (decided; see [product-scope.md](./product-scope.md)). The default account-provisioning policy and bootstrap-credential lifecycle are also decided (TASK-0003, TASK-0004); the concrete token endpoint contract remains open until TASK-0204.
 - Runtime-session rules are agreed well enough to implement tests.
 - Minimum machine and power-meter data fields are accepted.
 - Deployment targets for the first environment are identified.

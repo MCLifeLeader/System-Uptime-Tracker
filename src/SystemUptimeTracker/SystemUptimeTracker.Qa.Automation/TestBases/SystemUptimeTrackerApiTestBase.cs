@@ -25,7 +25,9 @@ public abstract class SystemUptimeTrackerApiTestBase : QaApiTestBase
             return;
         }
 
-        SystemUptimeTrackerAppHostManager.Acquire(SystemUptimeTrackerAppHostReadinessScope.SERVER_ONLY);
+        SystemUptimeTrackerAppHostManager.Acquire(
+            AutomationDatabaseConnectionString,
+            SystemUptimeTrackerAppHostReadinessScope.SERVER_ONLY);
     }
 
     protected override void OnHostCreationFailed()
