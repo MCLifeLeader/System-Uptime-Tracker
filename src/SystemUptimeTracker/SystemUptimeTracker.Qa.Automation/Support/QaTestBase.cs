@@ -16,7 +16,15 @@ public abstract class QaTestBase
 
     protected QaAutomationExecutionOptions QaAutomationExecution { get; private set; } = null!;
 
-    protected string AutomationDatabaseConnectionString { get; private set; } = null!;
+    private Lazy<string> _automationDatabaseConnectionString = null!;
+
+    /// <summary>
+    /// Resolved (and isolation-validated) on first access so configurations
+    /// that never touch the database — an external host with database and
+    /// identity cleanup skipped — do not require a configured connection
+    /// string just to run.
+    /// </summary>
+    protected string AutomationDatabaseConnectionString => _automationDatabaseConnectionString.Value;
 
     protected virtual bool IncludeKeyVault => false;
 
@@ -43,10 +51,10 @@ public abstract class QaTestBase
         Logger = Services.GetRequiredService<ILoggerFactory>().CreateLogger(GetType());
         AppSettings = Services.GetRequiredService<IOptions<AutomationAppSettings>>().Value;
         QaAutomationExecution = Services.GetRequiredService<IOptions<QaAutomationExecutionOptions>>().Value;
-        ConnectionStringsOptions connectionStrings = Services.GetRequiredService<IOptions<ConnectionStringsOptions>>().Value;
-        AutomationDatabaseConnectionString = RegisterDependentServices.ResolveRuntimeAutomationDatabaseConnectionString(
-            connectionStrings,
-            QaAutomationExecution);
+        _automationDatabaseConnectionString = new Lazy<string>(() =>
+            RegisterDependentServices.ResolveRuntimeAutomationDatabaseConnectionString(
+                Services.GetRequiredService<IOptions<ConnectionStringsOptions>>().Value,
+                QaAutomationExecution));
 
         if (!QaAutomationExecution.SkipDatabaseCleanup)
         {

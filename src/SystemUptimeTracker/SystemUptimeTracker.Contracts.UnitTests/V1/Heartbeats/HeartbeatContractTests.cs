@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SystemUptimeTracker.Contracts.V1;
@@ -60,9 +61,9 @@ public class HeartbeatContractTests
             Assert.That(request.PayloadVersion, Is.EqualTo(PayloadVersions.V1));
             Assert.That(request.AgentId, Is.EqualTo(Guid.Parse("3a812c1a-9dfd-42e7-97f4-8a47d68971e4")));
             Assert.That(request.SequenceNumber, Is.EqualTo(4211));
-            Assert.That(request.SentAtUtc, Is.EqualTo(DateTimeOffset.Parse("2026-07-25T15:30:00Z")));
-            Assert.That(request.AgentStartedAtUtc, Is.EqualTo(DateTimeOffset.Parse("2026-07-25T12:10:34Z")));
-            Assert.That(request.SystemBootTimeUtc, Is.EqualTo(DateTimeOffset.Parse("2026-07-24T18:42:11Z")));
+            Assert.That(request.SentAtUtc, Is.EqualTo(DateTimeOffset.Parse("2026-07-25T15:30:00Z", CultureInfo.InvariantCulture)));
+            Assert.That(request.AgentStartedAtUtc, Is.EqualTo(DateTimeOffset.Parse("2026-07-25T12:10:34Z", CultureInfo.InvariantCulture)));
+            Assert.That(request.SystemBootTimeUtc, Is.EqualTo(DateTimeOffset.Parse("2026-07-24T18:42:11Z", CultureInfo.InvariantCulture)));
             Assert.That(request.MachineName, Is.EqualTo("BUILD-SERVER-01"));
             Assert.That(request.OperatingSystem, Is.EqualTo("Ubuntu 24.04.3 LTS"));
             Assert.That(request.OperatingSystemVersion, Is.EqualTo("24.04.3"));
@@ -88,9 +89,9 @@ public class HeartbeatContractTests
             PayloadVersion = PayloadVersions.V1,
             AgentId = Guid.Parse("3a812c1a-9dfd-42e7-97f4-8a47d68971e4"),
             SequenceNumber = 4211,
-            SentAtUtc = DateTimeOffset.Parse("2026-07-25T15:30:00Z"),
-            AgentStartedAtUtc = DateTimeOffset.Parse("2026-07-25T12:10:34Z"),
-            SystemBootTimeUtc = DateTimeOffset.Parse("2026-07-24T18:42:11Z"),
+            SentAtUtc = DateTimeOffset.Parse("2026-07-25T15:30:00Z", CultureInfo.InvariantCulture),
+            AgentStartedAtUtc = DateTimeOffset.Parse("2026-07-25T12:10:34Z", CultureInfo.InvariantCulture),
+            SystemBootTimeUtc = DateTimeOffset.Parse("2026-07-24T18:42:11Z", CultureInfo.InvariantCulture),
             MachineName = "BUILD-SERVER-01",
             OperatingSystem = "Ubuntu 24.04.3 LTS",
             OperatingSystemVersion = "24.04.3",
@@ -118,11 +119,7 @@ public class HeartbeatContractTests
             ],
         };
 
-        JsonNode? actual = JsonNode.Parse(ContractJson.Serialize(request));
-        JsonNode? expected = JsonNode.Parse(GOLDEN_REQUEST_JSON);
-
-        Assert.That(JsonNode.DeepEquals(actual, expected), Is.True,
-            $"Serialized contract drifted from the pinned golden shape. Actual: {actual}");
+        ContractJson.AssertMatchesGolden(request, GOLDEN_REQUEST_JSON);
     }
 
     [Test]
@@ -151,11 +148,9 @@ public class HeartbeatContractTests
     [TestCase("memory")]
     public void HeartbeatRequest_MissingRequiredField_IsRejected(string requiredField)
     {
-        JsonNode golden = JsonNode.Parse(GOLDEN_REQUEST_JSON)!;
-        golden.AsObject().Remove(requiredField);
-
-        Assert.Throws<JsonException>(
-            () => ContractJson.Deserialize<HeartbeatRequest>(golden.ToJsonString()));
+        ContractJson.AssertMissingRequiredFieldRejected<HeartbeatRequest>(
+            GOLDEN_REQUEST_JSON,
+            requiredField);
     }
 
     [TestCase("sequenceNumber", "\"not-a-number\"")]
@@ -181,14 +176,10 @@ public class HeartbeatContractTests
             Assert.That(response.HeartbeatId, Is.EqualTo(Guid.Parse("9c0a95f2-63d4-4b7e-8a3a-52f27cf7f5a1")));
             Assert.That(response.MachineId, Is.EqualTo(Guid.Parse("7f1d2f7e-4a83-4a5f-9f6a-2f4f0f1b2c3d")));
             Assert.That(response.SequenceNumber, Is.EqualTo(4211));
-            Assert.That(response.ReceivedAtUtc, Is.EqualTo(DateTimeOffset.Parse("2026-07-25T15:30:02Z")));
+            Assert.That(response.ReceivedAtUtc, Is.EqualTo(DateTimeOffset.Parse("2026-07-25T15:30:02Z", CultureInfo.InvariantCulture)));
             Assert.That(response.Duplicate, Is.False);
         });
 
-        JsonNode? actual = JsonNode.Parse(ContractJson.Serialize(response));
-        JsonNode? expected = JsonNode.Parse(GOLDEN_RESPONSE_JSON);
-
-        Assert.That(JsonNode.DeepEquals(actual, expected), Is.True,
-            $"Serialized contract drifted from the pinned golden shape. Actual: {actual}");
+        ContractJson.AssertMatchesGolden(response, GOLDEN_RESPONSE_JSON);
     }
 }

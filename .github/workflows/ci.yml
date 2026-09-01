@@ -17,13 +17,22 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
   workflow_dispatch:
 
+# Cancel superseded runs for PR branches, but never cancel a main run, so
+# every main commit that touches code keeps its build/test evidence
+# (docs-only commits are excluded by the paths-ignore filters above).
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
@@ -97,6 +106,17 @@ jobs:
           --no-build
           --logger "console;verbosity=normal"
 
+      # Host-independent QA unit tests (connection-string resolution, options
+      # binding, AppHost helpers). The infrastructure-bound fixtures all carry
+      # Category=Automation and run via TASK-1108's journey job instead.
+      - name: QA host-independent unit tests (SystemUptimeTracker.Qa.Automation)
+        run: >-
+          dotnet test
+          src/SystemUptimeTracker/SystemUptimeTracker.Qa.Automation/SystemUptimeTracker.Qa.Automation.csproj
+          --no-build
+          --filter "TestCategory!=Automation"
+          --logger "console;verbosity=normal"
+
   contracts:
     name: Contract tests (v1 wire contracts)
     runs-on: ubuntu-latest
@@ -114,9 +134,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: nuget-contracts-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
           restore-keys: |
-            nuget-contracts-${{ runner.os }}-
+            nuget-${{ runner.os }}-
 
       - name: Golden JSON contract tests
         run: >-

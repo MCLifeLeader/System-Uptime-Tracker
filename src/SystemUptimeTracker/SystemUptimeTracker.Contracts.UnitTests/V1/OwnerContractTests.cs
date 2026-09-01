@@ -1,4 +1,3 @@
-using System.Text.Json.Nodes;
 using SystemUptimeTracker.Contracts.V1;
 using SystemUptimeTracker.Contracts.V1.DeviceAccounts;
 using SystemUptimeTracker.Contracts.V1.Machines;
@@ -133,11 +132,7 @@ public class OwnerContractTests
             Assert.That(session.CalculatedUptimeSeconds, Is.EqualTo(23640));
         });
 
-        JsonNode? actual = JsonNode.Parse(ContractJson.Serialize(session));
-        JsonNode? expected = JsonNode.Parse(goldenJson);
-
-        Assert.That(JsonNode.DeepEquals(actual, expected), Is.True,
-            $"Serialized contract drifted from the pinned golden shape. Actual: {actual}");
+        ContractJson.AssertMatchesGolden(session, goldenJson);
     }
 
     [Test]

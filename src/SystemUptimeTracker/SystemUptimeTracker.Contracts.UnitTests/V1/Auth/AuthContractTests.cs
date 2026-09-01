@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SystemUptimeTracker.Contracts.V1.Auth;
@@ -46,14 +47,10 @@ public class AuthContractTests
             Assert.That(response.AccessToken, Is.EqualTo("example.access.token"));
             Assert.That(response.ExpiresInSeconds, Is.EqualTo(900));
             Assert.That(response.RefreshToken, Is.EqualTo("example-refresh-token"));
-            Assert.That(response.RefreshTokenExpiresAtUtc, Is.EqualTo(DateTimeOffset.Parse("2026-09-13T15:30:00Z")));
+            Assert.That(response.RefreshTokenExpiresAtUtc, Is.EqualTo(DateTimeOffset.Parse("2026-09-13T15:30:00Z", CultureInfo.InvariantCulture)));
         });
 
-        JsonNode? actual = JsonNode.Parse(ContractJson.Serialize(response));
-        JsonNode? expected = JsonNode.Parse(GOLDEN_TOKEN_RESPONSE_JSON);
-
-        Assert.That(JsonNode.DeepEquals(actual, expected), Is.True,
-            $"Serialized contract drifted from the pinned golden shape. Actual: {actual}");
+        ContractJson.AssertMatchesGolden(response, GOLDEN_TOKEN_RESPONSE_JSON);
     }
 
     [Test]
@@ -65,7 +62,7 @@ public class AuthContractTests
             AccessToken = "a",
             ExpiresInSeconds = 900,
             RefreshToken = "r",
-            RefreshTokenExpiresAtUtc = DateTimeOffset.Parse("2026-09-13T15:30:00Z"),
+            RefreshTokenExpiresAtUtc = DateTimeOffset.Parse("2026-09-13T15:30:00Z", CultureInfo.InvariantCulture),
         }))!;
 
         // The wire shape must stay limited to issued tokens and lifetimes:
@@ -98,13 +95,10 @@ public class AuthContractTests
     [TestCase("password")]
     public void OwnerLoginRequest_MissingRequiredField_IsRejected(string requiredField)
     {
-        JsonNode golden = JsonNode.Parse("""
+        ContractJson.AssertMissingRequiredFieldRejected<OwnerLoginRequest>("""
             { "email": "owner@example.test", "password": "example-password" }
-            """)!;
-        golden.AsObject().Remove(requiredField);
-
-        Assert.Throws<JsonException>(
-            () => ContractJson.Deserialize<OwnerLoginRequest>(golden.ToJsonString()));
+            """,
+            requiredField);
     }
 
     [Test]
@@ -158,14 +152,10 @@ public class AuthContractTests
             Assert.That(response.DeviceAccountId, Is.EqualTo(Guid.Parse("5f0c4c1f-8f52-4f0f-a6b7-3b1de111aa01")));
             Assert.That(response.DeviceAccountName, Is.EqualTo("DEV-WORKSTATION-01"));
             Assert.That(response.BootstrapPassword, Is.EqualTo("example-one-time-bootstrap"));
-            Assert.That(response.IssuedAtUtc, Is.EqualTo(DateTimeOffset.Parse("2026-08-30T12:00:00Z")));
+            Assert.That(response.IssuedAtUtc, Is.EqualTo(DateTimeOffset.Parse("2026-08-30T12:00:00Z", CultureInfo.InvariantCulture)));
         });
 
-        JsonNode? actual = JsonNode.Parse(ContractJson.Serialize(response));
-        JsonNode? expected = JsonNode.Parse(GOLDEN_DEVICE_CREDENTIAL_JSON);
-
-        Assert.That(JsonNode.DeepEquals(actual, expected), Is.True,
-            $"Serialized contract drifted from the pinned golden shape. Actual: {actual}");
+        ContractJson.AssertMatchesGolden(response, GOLDEN_DEVICE_CREDENTIAL_JSON);
     }
 
     [Test]
@@ -178,14 +168,10 @@ public class AuthContractTests
             Assert.That(response.DeviceAccountId, Is.EqualTo(Guid.Parse("5f0c4c1f-8f52-4f0f-a6b7-3b1de111aa01")));
             Assert.That(response.DeviceAccountName, Is.EqualTo("SHELLY-PLUG-KITCHEN"));
             Assert.That(response.ApiKey, Is.EqualTo("example-one-time-api-key"));
-            Assert.That(response.IssuedAtUtc, Is.EqualTo(DateTimeOffset.Parse("2026-08-30T12:00:00Z")));
+            Assert.That(response.IssuedAtUtc, Is.EqualTo(DateTimeOffset.Parse("2026-08-30T12:00:00Z", CultureInfo.InvariantCulture)));
         });
 
-        JsonNode? actual = JsonNode.Parse(ContractJson.Serialize(response));
-        JsonNode? expected = JsonNode.Parse(GOLDEN_API_KEY_JSON);
-
-        Assert.That(JsonNode.DeepEquals(actual, expected), Is.True,
-            $"Serialized contract drifted from the pinned golden shape. Actual: {actual}");
+        ContractJson.AssertMatchesGolden(response, GOLDEN_API_KEY_JSON);
     }
 
     [Test]
@@ -196,7 +182,7 @@ public class AuthContractTests
             DeviceAccountId = Guid.Parse("5f0c4c1f-8f52-4f0f-a6b7-3b1de111aa01"),
             DeviceAccountName = "SHELLY-PLUG-KITCHEN",
             ApiKey = "example-one-time-api-key",
-            IssuedAtUtc = DateTimeOffset.Parse("2026-08-30T12:00:00Z"),
+            IssuedAtUtc = DateTimeOffset.Parse("2026-08-30T12:00:00Z", CultureInfo.InvariantCulture),
         }))!;
 
         Assert.That(actual.AsObject().Select(pair => pair.Key), Is.EquivalentTo(new[]

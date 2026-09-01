@@ -70,6 +70,13 @@ command (TASK-0007).
   failures, `408`, `429`, and `5xx` are retryable; `400`, `401` (after one
   reauthentication attempt), `403`, `404`, `409` (duplicate-create), `413`,
   and `422` are terminal for the queued item.
+- **Serialization:** every `/api/v1` endpoint serializes with System.Text.Json
+  web defaults (the same options the `SystemUptimeTracker.Contracts` golden
+  tests pin), which enforce the DTOs' `required` members and emit pinned
+  field names. The pre-v1 MVC controller pipeline is configured with
+  Newtonsoft.Json and must not host v1 routes — implement v1 as minimal-API
+  route groups (like the existing `/api/identity` endpoints) so the wire
+  behavior matches the contract tests.
 
 ## Route Catalog
 

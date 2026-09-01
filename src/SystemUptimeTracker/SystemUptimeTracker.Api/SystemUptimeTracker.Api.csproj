@@ -65,6 +65,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\SystemUptimeTracker.Common\SystemUptimeTracker.Common.csproj" />
+        <ProjectReference Include="..\SystemUptimeTracker.Contracts\SystemUptimeTracker.Contracts.csproj" />
         <ProjectReference Include="..\SystemUptimeTracker.Data\SystemUptimeTracker.Data.csproj" />
         <ProjectReference Include="..\SystemUptimeTracker.ServiceDefaults\SystemUptimeTracker.ServiceDefaults.csproj" />
     </ItemGroup>

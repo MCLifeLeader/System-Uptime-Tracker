@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SystemUptimeTracker.Contracts.V1;
@@ -42,7 +43,7 @@ public class PowerContractTests
             Assert.That(reading.Vendor, Is.EqualTo("Shelly"));
             Assert.That(reading.ExternalDeviceId, Is.EqualTo("shellyplugus4-a8032ab12345"));
             Assert.That(reading.MessageId, Is.EqualTo(Guid.Parse("b6a1f2c3-d4e5-4f60-8a9b-0c1d2e3f4a5b")));
-            Assert.That(reading.MeasuredAtUtc, Is.EqualTo(DateTimeOffset.Parse("2026-08-30T12:00:00Z")));
+            Assert.That(reading.MeasuredAtUtc, Is.EqualTo(DateTimeOffset.Parse("2026-08-30T12:00:00Z", CultureInfo.InvariantCulture)));
             Assert.That(reading.ActivePowerWatts, Is.EqualTo(87.4));
             Assert.That(reading.Voltage, Is.EqualTo(119.8));
             Assert.That(reading.CurrentAmps, Is.EqualTo(0.74));
@@ -80,11 +81,9 @@ public class PowerContractTests
     [TestCase("activePowerWatts")]
     public void PowerReadingRequest_MissingRequiredField_IsRejected(string requiredField)
     {
-        JsonNode golden = JsonNode.Parse(GOLDEN_READING_REQUEST_JSON)!;
-        golden.AsObject().Remove(requiredField);
-
-        Assert.Throws<JsonException>(
-            () => ContractJson.Deserialize<PowerReadingRequest>(golden.ToJsonString()));
+        ContractJson.AssertMissingRequiredFieldRejected<PowerReadingRequest>(
+            GOLDEN_READING_REQUEST_JSON,
+            requiredField);
     }
 
     [Test]
@@ -143,11 +142,7 @@ public class PowerContractTests
         CreateMachinePowerMeterAssociationRequest request =
             ContractJson.Deserialize<CreateMachinePowerMeterAssociationRequest>(goldenJson);
 
-        JsonNode? actual = JsonNode.Parse(ContractJson.Serialize(request));
-        JsonNode? expected = JsonNode.Parse(goldenJson);
-
-        Assert.That(JsonNode.DeepEquals(actual, expected), Is.True,
-            $"Serialized contract drifted from the pinned golden shape. Actual: {actual}");
+        ContractJson.AssertMatchesGolden(request, goldenJson);
     }
 
     [Test]

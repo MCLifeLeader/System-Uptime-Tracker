@@ -1,4 +1,3 @@
-using System.Text.Json.Nodes;
 using SystemUptimeTracker.Contracts.V1.Heartbeats;
 using SystemUptimeTracker.Contracts.V1.Power;
 
@@ -38,11 +37,7 @@ public class IdempotencyContractTests
             Assert.That(response.Duplicate, Is.True);
         });
 
-        JsonNode? actual = JsonNode.Parse(ContractJson.Serialize(response));
-        JsonNode? expected = JsonNode.Parse(goldenDuplicateJson);
-
-        Assert.That(JsonNode.DeepEquals(actual, expected), Is.True,
-            $"Serialized contract drifted from the pinned golden shape. Actual: {actual}");
+        ContractJson.AssertMatchesGolden(response, goldenDuplicateJson);
     }
 
     [Test]
@@ -68,10 +63,6 @@ public class IdempotencyContractTests
             Assert.That(response.Duplicate, Is.True);
         });
 
-        JsonNode? actual = JsonNode.Parse(ContractJson.Serialize(response));
-        JsonNode? expected = JsonNode.Parse(goldenDuplicateJson);
-
-        Assert.That(JsonNode.DeepEquals(actual, expected), Is.True,
-            $"Serialized contract drifted from the pinned golden shape. Actual: {actual}");
+        ContractJson.AssertMatchesGolden(response, goldenDuplicateJson);
     }
 }

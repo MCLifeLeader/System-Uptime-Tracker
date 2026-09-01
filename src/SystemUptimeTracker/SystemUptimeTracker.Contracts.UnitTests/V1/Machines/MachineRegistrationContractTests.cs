@@ -61,11 +61,7 @@ public class MachineRegistrationContractTests
             AgentVersion = "1.0.0",
         };
 
-        JsonNode? actual = JsonNode.Parse(ContractJson.Serialize(request));
-        JsonNode? expected = JsonNode.Parse(GOLDEN_REQUEST_JSON);
-
-        Assert.That(JsonNode.DeepEquals(actual, expected), Is.True,
-            $"Serialized contract drifted from the pinned golden shape. Actual: {actual}");
+        ContractJson.AssertMatchesGolden(request, GOLDEN_REQUEST_JSON);
     }
 
     [Test]
@@ -96,11 +92,9 @@ public class MachineRegistrationContractTests
     [TestCase("agentVersion")]
     public void MachineRegistrationRequest_MissingRequiredField_IsRejected(string requiredField)
     {
-        JsonNode golden = JsonNode.Parse(GOLDEN_REQUEST_JSON)!;
-        golden.AsObject().Remove(requiredField);
-
-        Assert.Throws<JsonException>(
-            () => ContractJson.Deserialize<MachineRegistrationRequest>(golden.ToJsonString()));
+        ContractJson.AssertMissingRequiredFieldRejected<MachineRegistrationRequest>(
+            GOLDEN_REQUEST_JSON,
+            requiredField);
     }
 
     [Test]
@@ -127,11 +121,7 @@ public class MachineRegistrationContractTests
             Assert.That(response.WasCreated, Is.True);
         });
 
-        JsonNode? actual = JsonNode.Parse(ContractJson.Serialize(response));
-        JsonNode? expected = JsonNode.Parse(GOLDEN_RESPONSE_JSON);
-
-        Assert.That(JsonNode.DeepEquals(actual, expected), Is.True,
-            $"Serialized contract drifted from the pinned golden shape. Actual: {actual}");
+        ContractJson.AssertMatchesGolden(response, GOLDEN_RESPONSE_JSON);
     }
 
     [Test]

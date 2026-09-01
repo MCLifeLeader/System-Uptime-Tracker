@@ -64,8 +64,9 @@ public static class RequestTraceContext
 
     /// <summary>
     /// Gets the response header name used to expose the trace identifier to callers.
+    /// Owned by the wire contract so the API, agents, and portal tooling agree.
     /// </summary>
-    public const string TRACE_ID_HEADER_NAME = "X-Trace-Id";
+    public const string TRACE_ID_HEADER_NAME = SystemUptimeTracker.Contracts.V1.ErrorContract.TraceIdHeaderName;
 
     private const string EMPTY_TRACE_ID = "00000000000000000000000000000000";
     private const string BACKEND_API_SURFACE = "backend-api";
